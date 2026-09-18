@@ -20,7 +20,7 @@ schedule.serveousercontent.com (<- сам сайт)
 
   > Если захочется запустить:
 
-```bash
+bash
 cd schedule
 python -m http.server 8000
 
