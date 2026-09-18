@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Расписание уроков">
+    <meta name="author" content="Despenced">
+    <meta name="color-scheme" content="light dark">
+    <title>Расписание</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <script>
+        (function () {
+            function pickTextColor(hex) {
+                const c = String(hex).replace('#', '');
+                if (c.length !== 6) return '#ffffff';
+                const r = parseInt(c.substr(0, 2), 16);
+                const g = parseInt(c.substr(2, 2), 16);
+                const b = parseInt(c.substr(4, 2), 16);
+                const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                return L > 160 ? '#0f172a' : '#ffffff';
+            }
+
+            const savedSettings = localStorage.getItem('app-settings');
+            const explicit = localStorage.getItem('theme-explicit') === '1';
+            let theme = explicit ? localStorage.getItem('theme') : null;
+            if (!theme && savedSettings) {
+                try { theme = JSON.parse(savedSettings).theme; } catch (e) {}
+            }
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', theme || (prefersDark ? 'dark' : 'light'));
+
+            if (savedSettings) {
+                try {
+                    const s = JSON.parse(savedSettings);
+                    if (s.accentColor) {
+                        document.documentElement.style.setProperty('--accent-override', s.accentColor);
+                        document.documentElement.style.setProperty('--accent-text-override', pickTextColor(s.accentColor));
+                    }
+                    if (s.lessonColor) document.documentElement.style.setProperty('--lesson-color-override', s.lessonColor);
+                    if (s.breakColor) document.documentElement.style.setProperty('--break-color-override', s.breakColor);
+                    if (s.heartOutlineColor) document.documentElement.style.setProperty('--heart-outline-override', s.heartOutlineColor);
+                    if (s.glowIntensity) {
+                        const blur = s.glowIntensity === 'soft' ? '8px'
+                                   : s.glowIntensity === 'strong' ? '18px' : '0px';
+                        document.documentElement.style.setProperty('--glow-blur-override', blur);
+                    }
+                } catch (e) {}
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="bg-orbs" aria-hidden="true">
+        <span class="orb orb-1"></span>
+        <span class="orb orb-2"></span>
+        <span class="orb orb-3"></span>
+    </div>
+    <div class="bg-gradient" aria-hidden="true"></div>
+    <canvas class="bg-particles" id="particles-canvas" aria-hidden="true"></canvas>
+
+    <button id="menu-toggle" class="menu-toggle" aria-label="Настройки">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
+    <div id="settings-overlay" class="settings-overlay"></div>
+
+    <aside id="settings-panel" class="settings-panel" aria-label="Настройки">
+        <div class="settings-header">
+            <h3>Настройки</h3>
+            <button id="settings-close" class="settings-close" aria-label="Закрыть">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="settings-body">
+            <div class="setting-group">
+                <span class="setting-label">Тема</span>
+                <div class="segmented" id="theme-switch">
+                    <button data-theme-value="light" class="seg-btn">Светлая</button>
+                    <button data-theme-value="dark" class="seg-btn">Тёмная</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <span class="setting-label">Уведомления о начале урока</span>
+                <div class="segmented" id="notify-switch">
+                    <button data-notify="off" class="seg-btn">Выкл</button>
+                    <button data-notify="on" class="seg-btn">Вкл</button>
+                </div>
+                <p class="setting-hint" id="notify-hint"></p>
+            </div>
+
+            <div class="setting-group">
+                <span class="setting-label">Стиль таймера</span>
+                <div class="segmented segmented-wrap" id="style-switch">
+                    <button data-style="ring" class="seg-btn">Кольцо</button>
+                    <button data-style="bar" class="seg-btn">Полоса</button>
+                    <button data-style="hearts" class="seg-btn">Сердца</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <span class="setting-label">Свечение таймера</span>
+                <div class="segmented" id="glow-switch">
+                    <button data-glow="off" class="seg-btn">Выкл</button>
+                    <button data-glow="soft" class="seg-btn">Мягкое</button>
+                    <button data-glow="strong" class="seg-btn">Сильное</button>
+                </div>
+            </div>
+
+            <div class="setting-subgroup" id="heart-settings">
+                <div class="setting-group">
+                    <label class="setting-label" for="heart-outline-color">Обводка сердец</label>
+                    <div class="color-row">
+                        <input type="color" id="heart-outline-color" value="#6366f1">
+                        <span class="color-value" id="heart-outline-color-value">#6366f1</span>
+                        <button type="button" id="heart-outline-reset" class="mini-btn" title="Синхронизировать с цветом урока">Авто</button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <span class="setting-label">Анимация сердец</span>
+                    <div class="segmented" id="heart-anim-switch">
+                        <button data-heart-anim="none" class="seg-btn">Выкл</button>
+                        <button data-heart-anim="bounce" class="seg-btn">Подпрыгивание</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label" for="accent-color">Основной цвет</label>
+                <div class="color-row">
+                    <input type="color" id="accent-color" value="#6366f1">
+                    <span class="color-value" id="accent-value">#6366f1</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label" for="lesson-color">Цвет урока</label>
+                <div class="color-row">
+                    <input type="color" id="lesson-color" value="#6366f1">
+                    <span class="color-value" id="lesson-value">#6366f1</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label" for="break-color">Цвет перемены</label>
+                <div class="color-row">
+                    <input type="color" id="break-color" value="#f59e0b">
+                    <span class="color-value" id="break-value">#f59e0b</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <span class="setting-label">Фон</span>
+                <div class="segmented segmented-wrap" id="bg-switch">
+                    <button data-bg="orbs" class="seg-btn">Орбы</button>
+                    <button data-bg="particles" class="seg-btn">Частицы</button>
+                    <button data-bg="gradient" class="seg-btn">Градиент</button>
+                    <button data-bg="none" class="seg-btn">Нет</button>
+                </div>
+            </div>
+
+            <div class="setting-subgroup" id="particles-settings">
+                <div class="setting-group">
+                    <label class="setting-label" for="particles-count">Количество частиц: <span id="particles-count-value">5</span></label>
+                    <input type="range" id="particles-count" min="1" max="10" value="5">
+                </div>
+
+                <div class="setting-group">
+                    <span class="setting-label">Форма частиц</span>
+                    <div class="segmented segmented-wrap" id="particles-shape">
+                        <button data-shape="dot" class="seg-btn">Точка</button>
+                        <button data-shape="heart" class="seg-btn">Сердце</button>
+                        <button data-shape="triangle" class="seg-btn">Треугольник</button>
+                        <button data-shape="random" class="seg-btn">Случайно</button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label" for="particles-blur">Размытие: <span id="particles-blur-value">0</span></label>
+                    <input type="range" id="particles-blur" min="0" max="10" value="0">
+                </div>
+            </div>
+
+            <div class="setting-subgroup" id="gradient-settings">
+                <div class="setting-group">
+                    <label class="setting-label" for="gradient-color1">Цвет 1</label>
+                    <div class="color-row">
+                        <input type="color" id="gradient-color1" value="#a5b4fc">
+                        <span class="color-value" id="gradient-color1-value">#a5b4fc</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label" for="gradient-color2">Цвет 2</label>
+                    <div class="color-row">
+                        <input type="color" id="gradient-color2" value="#f0abfc">
+                        <span class="color-value" id="gradient-color2-value">#f0abfc</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label" for="gradient-angle">Наклон: <span id="gradient-angle-value">135</span>°</label>
+                    <input type="range" id="gradient-angle" min="0" max="360" value="135">
+                </div>
+            </div>
+
+            <button id="reset-settings" class="reset-btn">Сбросить настройки</button>
+        </div>
+    </aside>
+
+    <header>
+        <h1 id="header-title" tabindex="0" role="button" title="К сегодняшнему дню">Расписание</h1>
+        <nav aria-label="Дни недели">
+            <ul>
+                <li><a href="#monday" data-day="monday">Пн</a></li>
+                <li><a href="#tuesday" data-day="tuesday">Вт</a></li>
+                <li><a href="#wednesday" data-day="wednesday">Ср</a></li>
+                <li><a href="#thursday" data-day="thursday">Чт</a></li>
+                <li><a href="#friday" data-day="friday">Пт</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div id="offline-badge" class="offline-badge" hidden>Офлайн · данные из кеша</div>
+
+    <main>
+        <section id="home">
+            <h2 class="section-title">Сейчас</h2>
+            <p class="status-text-only">Загрузка...</p>
+        </section>
+    </main>
+
+    <script src="script.js?v=5"></script>
+</body>
+</html>
