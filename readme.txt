@@ -1,4 +1,4 @@
-[schedule.serveousercontent.com](schedule.serveousercontent.com) (<- сам сайт)
+schedule.serveousercontent.com (<- сам сайт)
 
   > О сайте:
 Простой сайт для просмотра школьного расписания
