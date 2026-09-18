@@ -1,6 +1,6 @@
 # Расписание
 
-🔗 [schedule.serveousercontent.com](https://schedule.serveousercontent.com)
+🔗 [https://despensed.github.io/schedule/](https://despensed.github.io/schedule/)
 
 Простой сайт для просмотра школьного расписания.
 Сделан на HTML, CSS, JavaScript — и совсем немного Python. (+ помощь Deepseek)
