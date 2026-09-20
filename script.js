@@ -1,4 +1,5 @@
 let scheduleData = null;
+let tempScheduleData = null;
 let selectedDay = 'monday';
 let currentActualDay = null;
 let manualDaySelection = false;
@@ -109,42 +110,52 @@ function getSubjectIcon(subject) {
     return `<svg class="subject-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 }
 
+function getSchoolDay(dayName) {
+    return DAYS_RU[dayName] ? dayName : 'monday';
+}
+
+/* === Временное расписание (override) === */
+function getActiveTempForDay(day) {
+    const t = tempScheduleData;
+    if (!t || !t.active) return null;
+    if (t.day !== day) return null;
+    return t;
+}
+
 function getLessonsForDay(day) {
+    const temp = getActiveTempForDay(day);
+    if (temp && Array.isArray(temp.lessons)) {
+        return temp.lessons.slice();
+    }
     return (scheduleData && scheduleData.days && scheduleData.days[day]) || [];
 }
 
 function getBellsForDay(day) {
     if (!scheduleData) return [];
-    const useMondayBells = (day === 'monday' || day === 'thursday');
-    return useMondayBells ? scheduleData.bells.monday : scheduleData.bells.tuesday_friday;
+    const temp = getActiveTempForDay(day);
+    let mode;
+    if (temp && temp.bellsMode) {
+        mode = temp.bellsMode;
+    } else {
+        mode = (day === 'monday' || day === 'thursday') ? 'monday' : 'tuesday_friday';
+    }
+    return mode === 'monday' ? scheduleData.bells.monday : scheduleData.bells.tuesday_friday;
 }
 
 function dayHasLessons(day) {
     return getLessonsForDay(day).some(hasSubject);
 }
 
-function getSchoolDay(dayName) {
-    return DAYS_RU[dayName] ? dayName : 'monday';
-}
-
-function formatMinutes(seconds) {
-    return Math.max(0, Math.round(seconds / 60));
-}
-
-/* === Hash-навигация === */
-function writeHash(day) {
-    const target = `#${day}`;
-    if (location.hash === target) return;
-    try {
-        history.replaceState(null, '', target);
-    } catch (e) {
-        location.hash = day;
+function updateTempBadge() {
+    const badge = document.getElementById('temp-badge');
+    if (!badge) return;
+    if (!tempScheduleData || !tempScheduleData.active || !tempScheduleData.day) {
+        badge.hidden = true;
+        return;
     }
-}
-
-function readHashDay() {
-    const h = location.hash.slice(1);
-    return DAYS_ORDER.includes(h) ? h : null;
+    const dayRu = DAYS_RU[tempScheduleData.day] || tempScheduleData.day;
+    badge.textContent = `Временное расписание · ${dayRu}`;
+    badge.hidden = false;
 }
 
 /* === Частицы === */
@@ -359,7 +370,6 @@ function loadSettings() {
     if (typeof settings.notificationsEnabled !== 'boolean') settings.notificationsEnabled = false;
     if (typeof settings.heartOutlineCustom !== 'boolean') settings.heartOutlineCustom = false;
 
-    // Если пользователь не трогал обводку сердец — синхронизируем с цветом урока
     if (!settings.heartOutlineCustom) {
         settings.heartOutlineColor = settings.lessonColor;
     }
@@ -451,127 +461,87 @@ function updateNotifyHint() {
         hint.textContent = 'Браузер не поддерживает уведомления';
         return;
     }
-    if (!settings.notificationsEnabled) {
-        hint.textContent = '';
-        return;
-    }
-    if (Notification.permission === 'granted') {
-        hint.textContent = 'Уведомления включены';
-    } else if (Notification.permission === 'denied') {
-        hint.textContent = 'Разрешение отклонено в настройках браузера';
-    } else {
-        hint.textContent = 'Ожидается разрешение...';
-    }
+    if (!settings.notificationsEnabled) { hint.textContent = ''; return; }
+    if (Notification.permission === 'granted') hint.textContent = 'Уведомления включены';
+    else if (Notification.permission === 'denied') hint.textContent = 'Разрешение отклонено в браузере';
+    else hint.textContent = 'Ожидается разрешение...';
 }
 
 function initSettingsUI() {
     const panel = document.getElementById('settings-panel');
     const overlay = document.getElementById('settings-overlay');
 
-    const openPanel = () => {
-        panel.classList.add('open');
-        overlay.classList.add('open');
-    };
-    const closePanel = () => {
-        panel.classList.remove('open');
-        overlay.classList.remove('open');
-    };
+    const openPanel = () => { panel.classList.add('open'); overlay.classList.add('open'); };
+    const closePanel = () => { panel.classList.remove('open'); overlay.classList.remove('open'); };
 
     document.getElementById('menu-toggle').addEventListener('click', openPanel);
     document.getElementById('settings-close').addEventListener('click', closePanel);
     overlay.addEventListener('click', closePanel);
 
     document.getElementById('theme-switch').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.theme = btn.dataset.themeValue;
         localStorage.setItem('theme-explicit', '1');
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     document.getElementById('notify-switch').addEventListener('click', async e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         const value = btn.dataset.notify;
         if (value === 'on') {
-            if (!('Notification' in window)) {
-                settings.notificationsEnabled = false;
-            } else if (Notification.permission === 'granted') {
-                settings.notificationsEnabled = true;
-            } else if (Notification.permission === 'denied') {
-                settings.notificationsEnabled = false;
-            } else {
+            if (!('Notification' in window)) settings.notificationsEnabled = false;
+            else if (Notification.permission === 'granted') settings.notificationsEnabled = true;
+            else if (Notification.permission === 'denied') settings.notificationsEnabled = false;
+            else {
                 try {
                     const perm = await Notification.requestPermission();
                     settings.notificationsEnabled = (perm === 'granted');
-                } catch (err) {
-                    settings.notificationsEnabled = false;
-                }
+                } catch (err) { settings.notificationsEnabled = false; }
             }
-        } else {
-            settings.notificationsEnabled = false;
-        }
-        applySettings();
-        saveSettings();
+        } else settings.notificationsEnabled = false;
+        applySettings(); saveSettings();
     });
 
     document.getElementById('style-switch').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.timerStyle = btn.dataset.style;
-        applySettings();
-        saveSettings();
-        renderStatus();
+        applySettings(); saveSettings(); renderStatus();
     });
 
     document.getElementById('glow-switch').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.glowIntensity = btn.dataset.glow;
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     document.getElementById('heart-anim-switch').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.heartAnimation = btn.dataset.heartAnim;
-        applySettings();
-        saveSettings();
-        renderStatus();
+        applySettings(); saveSettings(); renderStatus();
     });
 
     document.getElementById('bg-switch').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.backgroundMode = btn.dataset.bg;
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     document.getElementById('particles-shape').addEventListener('click', e => {
-        const btn = e.target.closest('.seg-btn');
-        if (!btn) return;
+        const btn = e.target.closest('.seg-btn'); if (!btn) return;
         settings.particlesShape = btn.dataset.shape;
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     ['accent', 'lesson', 'break'].forEach(name => {
-        const input = document.getElementById(`${name}-color`);
-        if (!input) return;
+        const input = document.getElementById(`${name}-color`); if (!input) return;
         input.addEventListener('input', () => {
             settings[`${name}Color`] = input.value;
             const label = document.getElementById(`${name}-value`);
             if (label) label.textContent = input.value;
-            // Авто-синхронизация обводки сердец с цветом урока, если пользователь не фиксировал её вручную
             if (name === 'lesson' && !settings.heartOutlineCustom) {
                 settings.heartOutlineColor = input.value;
             }
-            applySettings();
-            saveSettings();
-            renderStatus();
+            applySettings(); saveSettings(); renderStatus();
         });
     });
 
@@ -581,28 +551,24 @@ function initSettingsUI() {
         settings.heartOutlineCustom = true;
         const label = document.getElementById('heart-outline-color-value');
         if (label) label.textContent = heartOutline.value;
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     const heartReset = document.getElementById('heart-outline-reset');
     if (heartReset) heartReset.addEventListener('click', () => {
         settings.heartOutlineCustom = false;
         settings.heartOutlineColor = settings.lessonColor;
-        applySettings();
-        saveSettings();
+        applySettings(); saveSettings();
     });
 
     ['gradient-color1', 'gradient-color2'].forEach(id => {
-        const input = document.getElementById(id);
-        if (!input) return;
+        const input = document.getElementById(id); if (!input) return;
         const key = id === 'gradient-color1' ? 'gradientColor1' : 'gradientColor2';
         input.addEventListener('input', () => {
             settings[key] = input.value;
             const label = document.getElementById(`${id}-value`);
             if (label) label.textContent = input.value;
-            applySettings();
-            saveSettings();
+            applySettings(); saveSettings();
         });
     });
 
@@ -629,8 +595,7 @@ function initSettingsUI() {
         settings.gradientAngle = parseInt(ga.value, 10);
         const label = document.getElementById('gradient-angle-value');
         if (label) label.textContent = ga.value;
-        applyBackground();
-        saveSettings();
+        applyBackground(); saveSettings();
     });
 
     document.getElementById('reset-settings').addEventListener('click', () => {
@@ -638,10 +603,7 @@ function initSettingsUI() {
         localStorage.removeItem('theme-explicit');
         settings.theme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
         settings.heartOutlineColor = settings.lessonColor;
-        applySettings();
-        saveSettings();
-        renderStatus();
-        renderSchedule(selectedDay);
+        applySettings(); saveSettings(); renderStatus(); renderSchedule(selectedDay);
     });
 }
 
@@ -677,16 +639,12 @@ function getNextEvent(now, selected) {
     const todayName = isWeekend ? null : DAYS_ORDER[todayIdx];
     const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
-    // Пользователь открыл другой день
     if (selected && selected !== todayName && DAYS_ORDER.includes(selected)) {
-        if (!dayHasLessons(selected)) {
-            return { mode: 'empty', day: selected };
-        }
+        if (!dayHasLessons(selected)) return { mode: 'empty', day: selected };
         const ev = firstLessonOfDay(selected, currentSeconds, todayIdx);
         if (ev) return ev;
     }
 
-    // Логика текущего дня
     if (!isWeekend) {
         const dayName = todayName;
         const bells = getBellsForDay(dayName);
@@ -726,20 +684,16 @@ function getNextEvent(now, selected) {
     for (let offset = 1; offset <= 7; offset++) {
         const nextIdx = (todayIdx + offset) % 7;
         if (nextIdx >= 5) continue;
-
         const dayName = DAYS_ORDER[nextIdx];
         const bells = getBellsForDay(dayName);
         const lessons = getLessonsForDay(dayName);
-
         for (let i = 0; i < bells.length; i++) {
             const bell = bells[i];
             const subject = lessons[i];
             if (!hasSubject(subject)) continue;
-
             const [sh, sm] = bell.start.split(':').map(Number);
             const startTotal = sh * 3600 + sm * 60;
             const secondsUntil = (24 * 3600 - currentSeconds) + (offset - 1) * 24 * 3600 + startTotal;
-
             return { mode: 'upcoming', type: 'lesson', remaining: secondsUntil,
                 total: secondsUntil, elapsed: 0, subject,
                 label: `${DAYS_SHORT[dayName]} · до начала ${bell.lesson} урока`,
@@ -763,13 +717,9 @@ function formatTime(seconds) {
 
 /* === Сердца === */
 function heartsFillCount(progress, type) {
-    let filled;
-    if (type === 'lesson') {
-        filled = Math.round((1 - progress) * 10);
-    } else {
-        filled = Math.round(progress * 10);
-    }
-    return Math.max(0, Math.min(10, filled));
+    return Math.max(0, Math.min(10,
+        type === 'lesson' ? Math.round((1 - progress) * 10) : Math.round(progress * 10)
+    ));
 }
 
 function heartClass(isFilled, fillClass, bounce) {
@@ -779,11 +729,10 @@ function heartClass(isFilled, fillClass, bounce) {
     return c;
 }
 
-/* Прогресс-деталь: «5 из 40 мин» */
 function formatProgressDetail(event) {
     if (!event || !event.total || event.total < 60) return '';
     const totalMin = Math.max(1, Math.round(event.total / 60));
-    if (event.mode === 'upcoming') return `осталось ${totalMin} мин`;
+    if (event.mode === 'upcoming') return `длительность ${totalMin} мин`;
     const elapsedMin = Math.max(0, Math.min(totalMin, Math.floor(event.elapsed / 60)));
     return `${elapsedMin} из ${totalMin} мин`;
 }
@@ -801,7 +750,6 @@ function renderStatus() {
     const todayName = DAYS_EN[now.getDay()];
     const isOtherDay = event && event.day && event.day !== todayName;
 
-    // Пустой выбранный день
     if (event && event.mode === 'empty') {
         const title = DAYS_RU[event.day] || '';
         home.innerHTML = `<h2 class="section-title">${title}</h2><p class="status-text-only">В этот день уроков нет.</p>`;
@@ -891,7 +839,6 @@ function renderStatus() {
         `;
         home.dataset.key = key;
 
-        // Плавная смена блока
         home.classList.remove('animating');
         void home.offsetWidth;
         home.classList.add('animating');
@@ -913,8 +860,7 @@ function renderStatus() {
         } else if (settings.timerStyle === 'hearts') {
             const filled = heartsFillCount(progress, event.type);
             const fillClass = event.type === 'lesson' ? 'filled' : 'filled-break';
-            const icons = home.querySelectorAll('.heart-icon');
-            icons.forEach((icon, i) => {
+            home.querySelectorAll('.heart-icon').forEach((icon, i) => {
                 icon.setAttribute('class', heartClass(i < filled, fillClass, bounce));
             });
         }
@@ -924,7 +870,6 @@ function renderStatus() {
     maybeNotify(event);
 }
 
-/* === Тикающий заголовок вкладки === */
 function updateTitle(timeStr, event) {
     const t = timeStr ? `${timeStr} · Расписание` : 'Расписание';
     if (t !== lastTitleStr) {
@@ -933,25 +878,17 @@ function updateTitle(timeStr, event) {
     }
 }
 
-/* === Уведомления === */
 let lastNotifiedKey = null;
-
 function maybeNotify(event) {
     if (!settings.notificationsEnabled) return;
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
     if (!event || event.mode !== 'active' || event.type !== 'lesson') return;
-
     const key = `${event.day}|${event.index}|${event.subject}`;
     if (key === lastNotifiedKey) return;
     lastNotifiedKey = key;
-
     try {
-        new Notification('Урок начался', {
-            body: event.subject,
-            tag: 'lesson-start',
-            silent: false
-        });
+        new Notification('Урок начался', { body: event.subject, tag: 'lesson-start', silent: false });
     } catch (e) {}
 }
 
@@ -960,7 +897,6 @@ function getLessonStatus(day, index, bells) {
     const now = new Date();
     const today = DAYS_EN[now.getDay()];
     if (day !== today) return 'normal';
-
     const bell = bells[index];
     if (!bell) return 'normal';
     const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -968,7 +904,6 @@ function getLessonStatus(day, index, bells) {
     const [eh, em] = bell.end.split(':').map(Number);
     const startTotal = sh * 3600 + sm * 60;
     const endTotal = eh * 3600 + em * 60;
-
     if (currentSeconds > endTotal) return 'past';
     if (currentSeconds >= startTotal) return 'current';
     return 'normal';
@@ -1006,11 +941,8 @@ function renderSchedule(day) {
     });
 
     let html = `<h2>${DAYS_RU[day] || ''}</h2>`;
-    if (listHtml) {
-        html += `<ul class="schedule-list">${listHtml}</ul>`;
-    } else {
-        html += '<p class="status-text-only">В этот день уроков нет.</p>';
-    }
+    if (listHtml) html += `<ul class="schedule-list">${listHtml}</ul>`;
+    else html += '<p class="status-text-only">В этот день уроков нет.</p>';
 
     let container = document.getElementById('schedule-view');
     if (!container) {
@@ -1024,7 +956,6 @@ function renderSchedule(day) {
 /* === Тик === */
 function tick() {
     if (document.hidden) return;
-
     const now = new Date();
     const today = DAYS_EN[now.getDay()];
     if (currentActualDay !== today) {
@@ -1034,13 +965,8 @@ function tick() {
             writeHash(selectedDay);
         }
     }
-
     tickCounter++;
-    if (tickCounter >= 15) {
-        tickCounter = 0;
-        renderSchedule(selectedDay);
-    }
-
+    if (tickCounter >= 15) { tickCounter = 0; renderSchedule(selectedDay); }
     renderStatus();
 }
 
@@ -1051,13 +977,22 @@ function startStatusInterval() {
 }
 
 function stopStatusInterval() {
-    if (statusInterval) {
-        clearInterval(statusInterval);
-        statusInterval = null;
-    }
+    if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
 }
 
-/* === Выбор дня === */
+/* === Навигация === */
+function writeHash(day) {
+    const target = `#${day}`;
+    if (location.hash === target) return;
+    try { history.replaceState(null, '', target); }
+    catch (e) { location.hash = day; }
+}
+
+function readHashDay() {
+    const h = location.hash.slice(1);
+    return DAYS_ORDER.includes(h) ? h : null;
+}
+
 function selectDay(day, manual) {
     if (!DAYS_ORDER.includes(day)) return;
     selectedDay = day;
@@ -1067,34 +1002,26 @@ function selectDay(day, manual) {
     renderStatus();
 }
 
-/* === Свайпы === */
 function initSwipe() {
     let startX = 0, startY = 0, moved = false;
-
     document.addEventListener('touchstart', e => {
-        if (e.target.closest('.settings-panel') || e.target.closest('.settings-overlay')) return;
+        if (e.target.closest('.settings-panel, .settings-overlay')) return;
         if (e.touches.length !== 1) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         moved = false;
     }, { passive: true });
-
     document.addEventListener('touchmove', e => {
-        if (moved) return;
-        if (e.touches.length !== 1) return;
+        if (moved || e.touches.length !== 1) return;
         const dx = Math.abs(e.touches[0].clientX - startX);
         const dy = Math.abs(e.touches[0].clientY - startY);
         if (dx > 10 || dy > 10) moved = true;
     }, { passive: true });
-
     document.addEventListener('touchend', e => {
-        if (!moved) return;
-        if (e.changedTouches.length !== 1) return;
+        if (!moved || e.changedTouches.length !== 1) return;
         const dx = e.changedTouches[0].clientX - startX;
         const dy = e.changedTouches[0].clientY - startY;
-        if (Math.abs(dx) < 60) return;
-        if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
-
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
         const idx = DAYS_ORDER.indexOf(selectedDay);
         if (idx < 0) return;
         const nextIdx = dx < 0 ? idx + 1 : idx - 1;
@@ -1103,7 +1030,6 @@ function initSwipe() {
     }, { passive: true });
 }
 
-/* === Клавиатура === */
 function initKeyboard() {
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
@@ -1125,7 +1051,7 @@ function initKeyboard() {
     });
 }
 
-/* === Загрузка расписания с кешем === */
+/* === Загрузка === */
 async function loadSchedule() {
     const CACHE_KEY = 'schedule-cache-v1';
     const badge = document.getElementById('offline-badge');
@@ -1149,7 +1075,25 @@ async function loadSchedule() {
     }
 }
 
-/* === Инициализация === */
+async function loadTempSchedule() {
+    try {
+        const r = await fetch('schedule_temp.json', { cache: 'no-cache' });
+        if (!r.ok) {
+            if (r.status === 404) return null;
+            throw new Error(`HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        if (!data || typeof data !== 'object') return null;
+        if (!data.active) return null;
+        if (!data.day || !Array.isArray(data.lessons)) return null;
+        return data;
+    } catch (e) {
+        // Нет файла или битый JSON — просто работаем без override
+        return null;
+    }
+}
+
+/* === Init === */
 async function init() {
     particlesInit();
     loadSettings();
@@ -1162,19 +1106,13 @@ async function init() {
         SYSTEM_THEME_MQL.addEventListener('change', (e) => {
             if (localStorage.getItem('theme-explicit') === '1') return;
             settings.theme = e.matches ? 'dark' : 'light';
-            applySettings();
-            saveSettings();
+            applySettings(); saveSettings();
         });
     }
 
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            stopStatusInterval();
-        } else {
-            startStatusInterval();
-            renderSchedule(selectedDay);
-            renderStatus();
-        }
+        if (document.hidden) stopStatusInterval();
+        else { startStatusInterval(); renderSchedule(selectedDay); renderStatus(); }
     });
 
     window.addEventListener('hashchange', () => {
@@ -1184,11 +1122,12 @@ async function init() {
 
     try {
         scheduleData = await loadSchedule();
+        tempScheduleData = await loadTempSchedule();
+        updateTempBadge();
 
         const now = new Date();
         currentActualDay = DAYS_EN[now.getDay()];
         const autoDay = getSchoolDay(currentActualDay);
-
         const hashDay = readHashDay();
         selectedDay = hashDay || autoDay;
         manualDaySelection = selectedDay !== autoDay;
@@ -1219,7 +1158,7 @@ async function init() {
     } catch (error) {
         console.error('Ошибка загрузки расписания:', error);
         document.querySelector('#home').innerHTML =
-            '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Ошибка загрузки данных. Проверьте, запущен ли локальный сервер.</p>';
+            '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Ошибка загрузки данных.</p>';
     }
 }
 
