@@ -55,7 +55,6 @@ body {
     position: relative;
 }
 
-/* Универсальные focus-visible стили */
 .seg-btn:focus-visible,
 .menu-toggle:focus-visible,
 .settings-close:focus-visible,
@@ -171,36 +170,22 @@ nav ul li a:focus-visible,
     justify-content: space-between;
     margin-bottom: 24px;
 }
-.settings-header h3 {
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
+.settings-header h3 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
 .settings-close {
-    width: 32px;
-    height: 32px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     border: 1px solid var(--border);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     transition: background 0.2s ease, color 0.2s ease;
 }
 .settings-close:hover { background: var(--surface-2); color: var(--text); }
 
 .settings-body { display: flex; flex-direction: column; gap: 22px; padding-bottom: 20px; }
-
 .setting-group { display: flex; flex-direction: column; gap: 10px; }
-
-.setting-hint {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    line-height: 1.35;
-    min-height: 0.9rem;
-}
+.setting-hint { font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; min-height: 0.9rem; }
 
 .setting-subgroup {
     display: none;
@@ -248,8 +233,7 @@ nav ul li a:focus-visible,
 
 .color-row { display: flex; align-items: center; gap: 12px; }
 .color-row input[type="color"] {
-    width: 48px;
-    height: 38px;
+    width: 48px; height: 38px;
     border: 1px solid var(--border);
     border-radius: 10px;
     cursor: pointer;
@@ -282,8 +266,7 @@ nav ul li a:focus-visible,
 .mini-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--accent); }
 
 input[type="range"] {
-    width: 100%;
-    height: 6px;
+    width: 100%; height: 6px;
     border-radius: 100px;
     background: var(--border);
     outline: none;
@@ -294,8 +277,7 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 18px; height: 18px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -303,8 +285,7 @@ input[type="range"]::-webkit-slider-thumb {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 18px; height: 18px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -360,18 +341,16 @@ nav ul li a.active { background: var(--accent); color: var(--accent-text); borde
 nav ul li a.today::after {
     content: '';
     position: absolute;
-    bottom: 3px;
-    left: 50%;
+    bottom: 3px; left: 50%;
     transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
+    width: 4px; height: 4px;
     border-radius: 50%;
     background: currentColor;
     opacity: 0.75;
 }
 nav ul li a.active.today::after { opacity: 0.95; }
 
-/* === Offline badge === */
+/* === Бейджи === */
 .offline-badge {
     max-width: 720px;
     margin: -8px auto 16px;
@@ -386,10 +365,13 @@ nav ul li a.active.today::after { opacity: 0.95; }
     width: fit-content;
 }
 .offline-badge[hidden] { display: none; }
+.temp-badge {
+    color: var(--break-color);
+    border-color: var(--break-color);
+}
 
 /* === Контент === */
 main { max-width: 720px; margin: 0 auto; position: relative; }
-
 .section-title {
     font-size: 0.78rem;
     font-weight: 700;
@@ -414,9 +396,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     contain: paint;
     line-height: 1.4;
 }
-
 #home.animating { animation: card-swap 0.28s ease; }
-
 @keyframes card-swap {
     from { opacity: 0.35; transform: scale(0.985); }
     to   { opacity: 1; transform: scale(1); }
@@ -424,7 +404,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 
 #home.event-lesson { --event-color: var(--lesson-color); }
 #home.event-break  { --event-color: var(--break-color); }
-
 #home[class*="event-"] .ring-fg,
 #home[class*="event-"] .status-bar-fill,
 #home[class*="event-"] .heart-icon.filled,
@@ -437,8 +416,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     position: relative;
     display: block;
     margin: 0 auto;
-    width: 190px;
-    height: 190px;
+    width: 190px; height: 190px;
 }
 .status-ring-svg { width: 190px; height: 190px; transform: rotate(-90deg); display: block; }
 .ring-bg { fill: none; stroke: var(--ring-bg); stroke-width: 8; transition: stroke 0.35s ease; }
@@ -509,232 +487,4 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 }
 .status-bar-track {
     height: 12px;
-    background: var(--ring-bg);
-    border-radius: 100px;
-    overflow: hidden;
-}
-.status-bar-fill {
-    height: 100%;
-    border-radius: 100px;
-    transition: width 0.5s linear, background-color 0.35s ease, filter 0.3s ease;
-}
-
-/* === Сердца === */
-.status-hearts {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    margin-top: 8px;
-}
-.status-hearts-time {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.7rem;
-    font-weight: 700;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    line-height: 1;
-}
-.hearts-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    max-width: 340px;
-}
-.heart-icon {
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-    transition: filter 0.3s ease;
-    overflow: visible;
-}
-.heart-icon path {
-    fill: transparent;
-    stroke: var(--heart-outline-color);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    transition: fill 0.35s ease, stroke 0.35s ease;
-}
-.heart-icon.filled path      { fill: var(--lesson-color); }
-.heart-icon.filled-break path { fill: var(--break-color); }
-
-@keyframes heart-bounce {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-6px); }
-}
-.heart-icon.bouncing {
-    animation: heart-bounce 1.4s ease-in-out infinite;
-    animation-delay: calc(var(--i, 0) * 0.08s);
-    will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .heart-icon.bouncing { animation: none; }
-    #home.animating { animation: none; }
-}
-
-.status-hearts-label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    text-align: center;
-    font-weight: 500;
-}
-
-.status-detail-inline {
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 0.85em;
-}
-
-.status-ring-subject {
-    margin-top: 8px;
-    font-size: 1.05rem;
-    line-height: 1.2;
-    color: var(--text);
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    max-width: 100%;
-    padding: 0 4px;
-    text-align: center;
-    flex-wrap: wrap;
-}
-.status-ring-subject span {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-.status-ring-subject .subject-icon { color: var(--accent); }
-
-.status-text-only {
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    text-align: center;
-    padding: 10px 0;
-}
-
-/* === Расписание === */
-#schedule-view {
-    background: var(--surface);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 24px;
-    border-radius: 22px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    transition: background-color 0.35s ease, border-color 0.35s ease;
-    contain: paint;
-}
-#schedule-view h2 {
-    text-align: center;
-    color: var(--text);
-    margin-bottom: 20px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-
-.schedule-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.schedule-list li {
-    display: grid;
-    grid-template-columns: 70px 100px 1fr;
-    align-items: center;
-    padding: 13px 16px;
-    background: var(--surface-2);
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    transition: background-color 0.35s ease, border-color 0.35s ease, opacity 0.35s ease;
-}
-.schedule-list li.past { opacity: 0.4; }
-.schedule-list li.current {
-    border-color: var(--accent);
-    box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.lesson-num { font-weight: 700; color: var(--accent); font-size: 0.82rem; }
-.lesson-time {
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    font-family: 'JetBrains Mono', monospace;
-}
-.lesson-subject {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    text-align: right;
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.92rem;
-    letter-spacing: -0.01em;
-}
-.subject-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent); stroke-width: 2; }
-
-/* === Доступность / экономия === */
-@media (prefers-reduced-transparency: reduce) {
-    #home, #schedule-view {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        background: var(--surface-solid);
-    }
-}
-
-/* === Адаптивность === */
-@media (max-width: 600px) {
-    body { padding: 16px 12px 32px; }
-    .menu-toggle { top: 12px; right: 12px; width: 38px; height: 38px; }
-    .settings-panel { padding: 20px; }
-
-    header { margin-bottom: 22px; }
-    header h1 { font-size: 1.45rem; margin-bottom: 14px; }
-    nav ul { gap: 6px; }
-    nav ul li a { padding: 7px 13px; font-size: 0.82rem; }
-
-    #home { padding: 22px 16px; border-radius: 18px; }
-
-    .status-ring-container, .status-ring-svg { width: 156px; height: 156px; }
-    .status-ring-content { padding: 22px; }
-    .status-ring-time { font-size: 1.5rem; }
-    .status-ring-label { font-size: 0.68rem; max-width: 90px; }
-    .status-bar-time { font-size: 1.45rem; }
-    .status-bar-label { font-size: 0.72rem; }
-    .status-hearts-time { font-size: 1.45rem; }
-    .heart-icon { width: 24px; height: 24px; }
-
-    .status-ring-subject { font-size: 0.98rem; margin-top: 6px; }
-
-    #schedule-view { padding: 18px 14px; border-radius: 18px; }
-    #schedule-view h2 { font-size: 1rem; }
-
-    .schedule-list li {
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto;
-        gap: 4px 10px;
-        padding: 12px 14px;
-    }
-    .lesson-num { grid-column: 1; grid-row: 1; font-size: 0.78rem; }
-    .lesson-time { grid-column: 1; grid-row: 2; font-size: 0.75rem; }
-    .lesson-subject {
-        grid-column: 2;
-        grid-row: 1 / span 2;
-        align-self: center;
-        font-size: 0.88rem;
-    }
-}
-
-@media (max-width: 380px) {
-    nav ul li a { padding: 6px 10px; font-size: 0.78rem; }
-    .status-ring-container, .status-ring-svg { width: 140px; height: 140px; }
-    .status-ring-content { padding: 18px; }
-    .status-ring-time { font-size: 1.35rem; }
-    .status-ring-label { max-width: 78px; }
-    .heart-icon { width: 22px; height: 22px; }
-    .subject-icon { width: 16px; height: 16px; }
-}
+    background:
