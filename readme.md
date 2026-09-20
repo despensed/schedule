@@ -1,6 +1,4 @@
-# ‼️ В связи с тем, что я переехал с serveo на github pages server.py в общем своём потерял свою надобность, но удалять я него не стану поскольку кому-нибудь он может пригодиться ‼️
-
-# Расписание
+ # Расписание
 
 🔗 [https://despensed.github.io/schedule/](https://despensed.github.io/schedule/)
 
