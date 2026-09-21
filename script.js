@@ -93,7 +93,6 @@ function pickTextColor(hex) {
     return L > 160 ? '#0f172a' : '#ffffff';
 }
 
-/* Иконка предмета — размер задан и атрибутами, и CSS-классом */
 function getSubjectIcon(subject) {
     const key = subject.toLowerCase().trim();
     const iconName = SUBJECT_ICON_MAP[key] || 'bookClosed';
@@ -364,8 +363,6 @@ function setColorInput(id, value) {
     if (label) label.textContent = value;
 }
 
-function glowToBlur(i) { return i === 'soft' ? '8px' : i === 'strong' ? '18px' : '0px'; }
-
 function applySettings() {
     if (settings.theme === 'custom') {
         const base = settings.customBaseTheme === 'dark' ? 'dark' : 'light';
@@ -376,12 +373,14 @@ function applySettings() {
         document.documentElement.setAttribute('data-theme', settings.theme);
     }
 
+    // Гейт для свечения — CSS по нему решает, применять фильтр или нет
+    document.documentElement.setAttribute('data-glow', settings.glowIntensity);
+
     document.documentElement.style.setProperty('--accent-override', settings.accentColor);
     document.documentElement.style.setProperty('--accent-text-override', pickTextColor(settings.accentColor));
     document.documentElement.style.setProperty('--lesson-color-override', settings.lessonColor);
     document.documentElement.style.setProperty('--break-color-override', settings.breakColor);
     document.documentElement.style.setProperty('--heart-outline-override', settings.heartOutlineColor);
-    document.documentElement.style.setProperty('--glow-blur-override', glowToBlur(settings.glowIntensity));
 
     if (settings.orbsColors[0]) document.documentElement.style.setProperty('--orb-1', settings.orbsColors[0]);
     if (settings.orbsColors[1]) document.documentElement.style.setProperty('--orb-2', settings.orbsColors[1]);
