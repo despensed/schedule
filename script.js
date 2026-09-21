@@ -366,7 +366,6 @@ function setColorInput(id, value) {
 function glowToBlur(i) { return i === 'soft' ? '8px' : i === 'strong' ? '18px' : '0px'; }
 
 function applySettings() {
-    // Тема
     if (settings.theme === 'custom') {
         const base = settings.customBaseTheme === 'dark' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', base);
@@ -594,10 +593,8 @@ function initSettingsUI() {
         });
     });
 
-    // === Ползунки и числа для частиц ===
     const pc = document.getElementById('particles-count');
     const pcv = document.getElementById('particles-count-value');
-    // Слайдер: 1..10
     if (pc) pc.addEventListener('input', () => {
         const v = clamp(parseInt(pc.value, 10) || 1, 1, 10);
         settings.particlesCount = v;
@@ -605,7 +602,6 @@ function initSettingsUI() {
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
-    // Числовое поле: 1..100
     if (pcv) pcv.addEventListener('input', () => {
         let v = parseInt(pcv.value, 10);
         if (isNaN(v)) return;
@@ -624,7 +620,6 @@ function initSettingsUI() {
 
     const pb = document.getElementById('particles-blur');
     const pbv = document.getElementById('particles-blur-value');
-    // Слайдер: 0..10
     if (pb) pb.addEventListener('input', () => {
         const v = clamp(parseInt(pb.value, 10) || 0, 0, 10);
         settings.particlesBlur = v;
@@ -632,7 +627,6 @@ function initSettingsUI() {
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
-    // Числовое поле: 0..100
     if (pbv) pbv.addEventListener('input', () => {
         let v = parseInt(pbv.value, 10);
         if (isNaN(v)) return;
@@ -825,7 +819,7 @@ function buildHeartsHtml(filledFraction, bounce) {
 
 /* === Часы (слот-машина по цифрам) === */
 function clockDigitHtml(digit) {
-    return `<span class="clock-digit"><span class="clock-digit-cur">${digit}</span></span>`;
+    return `<span class="clock-digit"><span class="clock-digit-layer">${digit}</span></span>`;
 }
 
 function buildClockHtml(remaining) {
@@ -833,9 +827,7 @@ function buildClockHtml(remaining) {
     const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
     const showH = h > 0;
-    const hs = pad2(h);
-    const ms = pad2(m);
-    const ss = pad2(s);
+    const hs = pad2(h), ms = pad2(m), ss = pad2(s);
     return `
         <div class="status-clock ${showH ? '' : 'no-hours'}">
             <div class="clock-part-h">
@@ -851,28 +843,25 @@ function buildClockHtml(remaining) {
 
 function rollClockDigit(digitEl, newVal) {
     if (!digitEl) return;
-    const cur = digitEl.querySelector('.clock-digit-cur');
+
+    // Убираем все «уезжающие» слои от предыдущих анимаций, чтобы не копились
+    digitEl.querySelectorAll('.clock-digit-exit').forEach(el => el.remove());
+
+    const layers = digitEl.querySelectorAll('.clock-digit-layer');
+    const cur = layers[layers.length - 1];
     if (!cur) return;
-    const oldVal = cur.textContent;
-    if (oldVal === newVal) return;
+    if (cur.textContent === newVal) return;
 
-    // Убираем старый исходящий, если ещё висит
-    const existingOut = digitEl.querySelector('.clock-digit-out');
-    if (existingOut) existingOut.remove();
+    // Старый слой → уезжает вверх
+    cur.classList.add('clock-digit-exit');
 
-    // Исходящая цифра (уезжает вверх)
-    const out = document.createElement('span');
-    out.className = 'clock-digit-out';
-    out.textContent = oldVal;
-    digitEl.appendChild(out);
+    // Новый слой → въезжает снизу
+    const next = document.createElement('span');
+    next.className = 'clock-digit-layer clock-digit-enter';
+    next.textContent = newVal;
+    digitEl.appendChild(next);
 
-    // Обновляем текущую (въезжает снизу)
-    cur.textContent = newVal;
-    cur.classList.remove('clock-digit-in');
-    void cur.offsetWidth;
-    cur.classList.add('clock-digit-in');
-
-    setTimeout(() => out.remove(), 450);
+    setTimeout(() => { cur.remove(); }, 450);
 }
 
 function updateClockSegment(seg, newValue) {
