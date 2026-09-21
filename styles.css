@@ -647,26 +647,28 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     margin: 8px auto 0;
-    font-family: 'JetBrains Mono', 'Manrope', monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 2.2rem;
     font-weight: 700;
     color: var(--text);
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
     line-height: 1;
     font-variant-numeric: tabular-nums;
     user-select: none;
 }
 .status-clock.no-hours .clock-part-h { display: none; }
-.clock-part-h { display: flex; align-items: center; gap: 6px; }
+.clock-part-h { display: flex; align-items: center; gap: 4px; }
 
 .clock-segment {
     display: inline-flex;
+    align-items: center;
     color: var(--event-color, var(--lesson-color));
+    line-height: 1;
 }
 
-/* Каждая цифра — отдельный контейнер с собственной областью обрезки */
+/* Контейнер одной цифры с обрезкой по вертикали */
 .clock-digit {
     position: relative;
     display: inline-block;
@@ -675,36 +677,42 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     overflow: hidden;
     text-align: center;
     vertical-align: top;
-    line-height: 1.15em;
-    font-size: 1em;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
 }
-.clock-digit-cur {
-    display: block;
-    width: 100%;
-    text-align: center;
-    line-height: 1.15em;
-    will-change: transform;
-}
-.clock-digit-out {
+
+/* Слой цифры — абсолютный, заполняет контейнер */
+.clock-digit-layer {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    text-align: center;
-    line-height: 1.15em;
-    animation: clock-digit-out 0.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-    pointer-events: none;
+    height: 1.15em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    will-change: transform;
+    backface-visibility: hidden;
 }
-.clock-digit-cur.clock-digit-in {
-    animation: clock-digit-in 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
+
+/* Въезжающая снизу */
+.clock-digit-enter {
+    animation: clock-digit-enter 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
 }
-@keyframes clock-digit-out {
-    from { transform: translateY(0); opacity: 1; }
-    to   { transform: translateY(-100%); opacity: 0; }
+/* Уезжающая вверх */
+.clock-digit-exit {
+    animation: clock-digit-exit 0.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
-@keyframes clock-digit-in {
-    from { transform: translateY(100%); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
+
+@keyframes clock-digit-enter {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+@keyframes clock-digit-exit {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-100%); }
 }
 
 .clock-sep {
@@ -721,8 +729,8 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .clock-digit-out,
-    .clock-digit-cur.clock-digit-in { animation: none; }
+    .clock-digit-enter,
+    .clock-digit-exit { animation: none; }
 }
 
 /* Подпись предмета */
@@ -776,94 +784,4 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 .schedule-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .schedule-list li {
     display: grid;
-    grid-template-columns: 70px 100px 1fr;
-    align-items: center;
-    padding: 13px 16px;
-    background: var(--surface-2);
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    transition: background-color 0.35s ease, border-color 0.35s ease, opacity 0.35s ease;
-}
-.schedule-list li.past { opacity: 0.4; }
-.schedule-list li.current {
-    border-color: var(--accent);
-    box-shadow: inset 0 0 0 1px var(--accent);
-}
-.lesson-num { font-weight: 700; color: var(--accent); font-size: 0.82rem; }
-.lesson-time {
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    font-family: 'JetBrains Mono', monospace;
-}
-.lesson-subject {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    text-align: right;
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.92rem;
-    letter-spacing: -0.01em;
-}
-.subject-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent); stroke-width: 2; }
-
-/* Доступность */
-@media (prefers-reduced-transparency: reduce) {
-    #home, #schedule-view {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        background: var(--surface-solid);
-    }
-}
-
-/* Адаптивность */
-@media (max-width: 600px) {
-    body { padding: 16px 12px 32px; }
-    .menu-toggle { top: 12px; right: 12px; width: 38px; height: 38px; }
-    .settings-panel { padding: 20px 20px 12px; width: 92vw; }
-
-    header { margin-bottom: 22px; }
-    header h1 { font-size: 1.45rem; margin-bottom: 14px; }
-    nav ul { gap: 6px; }
-    nav ul li a { padding: 7px 13px; font-size: 0.82rem; }
-
-    #home { padding: 22px 16px; border-radius: 18px; }
-
-    .status-ring-container, .status-ring-svg { width: 156px; height: 156px; }
-    .status-ring-content { padding: 22px; }
-    .status-ring-time { font-size: 1.5rem; }
-    .status-ring-label { font-size: 0.68rem; max-width: 90px; }
-    .status-bar-time { font-size: 1.45rem; }
-    .status-bar-label { font-size: 0.72rem; }
-    .status-hearts-time { font-size: 1.45rem; }
-    .heart-icon { width: 24px; height: 24px; }
-    .status-ring-subject { font-size: 0.98rem; margin-top: 6px; }
-    .status-clock { font-size: 1.9rem; }
-
-    #schedule-view { padding: 18px 14px; border-radius: 18px; }
-    #schedule-view h2 { font-size: 1rem; }
-
-    .schedule-list li {
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto;
-        gap: 4px 10px;
-        padding: 12px 14px;
-    }
-    .lesson-num { grid-column: 1; grid-row: 1; font-size: 0.78rem; }
-    .lesson-time { grid-column: 1; grid-row: 2; font-size: 0.75rem; }
-    .lesson-subject { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 0.88rem; }
-}
-
-@media (max-width: 380px) {
-    nav ul li a { padding: 6px 10px; font-size: 0.78rem; }
-    .status-ring-container, .status-ring-svg { width: 140px; height: 140px; }
-    .status-ring-content { padding: 18px; }
-    .status-ring-time { font-size: 1.35rem; }
-    .status-ring-label { max-width: 78px; }
-    .heart-icon { width: 22px; height: 22px; }
-    .subject-icon { width: 16px; height: 16px; }
-    .status-clock { font-size: 1.6rem; }
-    }
+    grid-template-columns: 70px 100
