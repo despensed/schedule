@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="styles.css?v=6">
+    <link rel="stylesheet" href="styles.css?v=7">
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
 
@@ -27,32 +27,61 @@
                 const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
                 return L > 160 ? '#0f172a' : '#ffffff';
             }
+            function hexToRgb(hex) {
+                const c = String(hex).replace('#', '');
+                if (c.length !== 6) return { r: 99, g: 102, b: 241 };
+                return {
+                    r: parseInt(c.substr(0, 2), 16),
+                    g: parseInt(c.substr(2, 2), 16),
+                    b: parseInt(c.substr(4, 2), 16)
+                };
+            }
 
             const savedSettings = localStorage.getItem('app-settings');
+            let parsed = {};
+            if (savedSettings) { try { parsed = JSON.parse(savedSettings); } catch (e) {} }
+
             const explicit = localStorage.getItem('theme-explicit') === '1';
             let theme = explicit ? localStorage.getItem('theme') : null;
-            if (!theme && savedSettings) {
-                try { theme = JSON.parse(savedSettings).theme; } catch (e) {}
-            }
+            if (!theme && parsed.theme) theme = parsed.theme;
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-theme', theme || (prefersDark ? 'dark' : 'light'));
+            theme = theme || (prefersDark ? 'dark' : 'light');
 
-            if (savedSettings) {
-                try {
-                    const s = JSON.parse(savedSettings);
-                    if (s.accentColor) {
-                        document.documentElement.style.setProperty('--accent-override', s.accentColor);
-                        document.documentElement.style.setProperty('--accent-text-override', pickTextColor(s.accentColor));
-                    }
-                    if (s.lessonColor) document.documentElement.style.setProperty('--lesson-color-override', s.lessonColor);
-                    if (s.breakColor) document.documentElement.style.setProperty('--break-color-override', s.breakColor);
-                    if (s.heartOutlineColor) document.documentElement.style.setProperty('--heart-outline-override', s.heartOutlineColor);
-                    if (s.glowIntensity) {
-                        const blur = s.glowIntensity === 'soft' ? '8px'
-                                   : s.glowIntensity === 'strong' ? '18px' : '0px';
-                        document.documentElement.style.setProperty('--glow-blur-override', blur);
-                    }
-                } catch (e) {}
+            if (theme === 'custom' && parsed.customThemeColor) {
+                document.documentElement.setAttribute('data-theme', 'custom');
+                const rgb = hexToRgb(parsed.customThemeColor);
+                const lum = (0.2126*rgb.r + 0.7152*rgb.g + 0.0722*rgb.b) / 255;
+                const isDark = lum < 0.5;
+                const root = document.documentElement.style;
+                root.setProperty('--bg', parsed.customThemeColor);
+                root.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.75)`);
+                root.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
+                root.setProperty('--surface-solid', parsed.customThemeColor);
+                root.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                root.setProperty('--text', isDark ? '#f1f5f9' : '#0f172a');
+                root.setProperty('--text-muted', isDark ? '#94a3b8' : '#64748b');
+                root.setProperty('--border', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
+                root.setProperty('--ring-bg', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+
+            if (parsed.accentColor) {
+                document.documentElement.style.setProperty('--accent-override', parsed.accentColor);
+                document.documentElement.style.setProperty('--accent-text-override', pickTextColor(parsed.accentColor));
+            }
+            if (parsed.lessonColor) document.documentElement.style.setProperty('--lesson-color-override', parsed.lessonColor);
+            if (parsed.breakColor) document.documentElement.style.setProperty('--break-color-override', parsed.breakColor);
+            if (parsed.heartOutlineColor) document.documentElement.style.setProperty('--heart-outline-override', parsed.heartOutlineColor);
+            if (parsed.glowIntensity) {
+                const blur = parsed.glowIntensity === 'soft' ? '8px'
+                           : parsed.glowIntensity === 'strong' ? '18px' : '0px';
+                document.documentElement.style.setProperty('--glow-blur-override', blur);
+            }
+            if (Array.isArray(parsed.orbsColors)) {
+                if (parsed.orbsColors[0]) document.documentElement.style.setProperty('--orb-1', parsed.orbsColors[0]);
+                if (parsed.orbsColors[1]) document.documentElement.style.setProperty('--orb-2', parsed.orbsColors[1]);
+                if (parsed.orbsColors[2]) document.documentElement.style.setProperty('--orb-3', parsed.orbsColors[2]);
             }
         })();
     </script>
@@ -90,9 +119,20 @@
         <div class="settings-body">
             <div class="setting-group">
                 <span class="setting-label">Тема</span>
-                <div class="segmented" id="theme-switch">
+                <div class="segmented segmented-wrap" id="theme-switch">
                     <button data-theme-value="light" class="seg-btn">Светлая</button>
                     <button data-theme-value="dark" class="seg-btn">Тёмная</button>
+                    <button data-theme-value="custom" class="seg-btn">Свой цвет</button>
+                </div>
+            </div>
+
+            <div class="setting-subgroup" id="custom-theme-settings">
+                <div class="setting-group">
+                    <label class="setting-label" for="custom-theme-color">Цвет темы</label>
+                    <div class="color-row">
+                        <input type="color" id="custom-theme-color" value="#1e1b4b">
+                        <span class="color-value" id="custom-theme-color-value">#1e1b4b</span>
+                    </div>
                 </div>
             </div>
 
@@ -111,6 +151,7 @@
                     <button data-style="ring" class="seg-btn">Кольцо</button>
                     <button data-style="bar" class="seg-btn">Полоса</button>
                     <button data-style="hearts" class="seg-btn">Сердца</button>
+                    <button data-style="clock" class="seg-btn">Часы</button>
                 </div>
             </div>
 
@@ -176,10 +217,26 @@
                 </div>
             </div>
 
+            <div class="setting-subgroup" id="orbs-settings">
+                <div class="setting-group">
+                    <span class="setting-label">Цвета орбов</span>
+                    <div class="multi-color-list" id="orbs-colors"></div>
+                </div>
+            </div>
+
             <div class="setting-subgroup" id="particles-settings">
                 <div class="setting-group">
-                    <label class="setting-label" for="particles-count">Количество частиц: <span id="particles-count-value">5</span></label>
-                    <input type="range" id="particles-count" min="1" max="10" value="5">
+                    <label class="setting-label" for="particles-count">Количество частиц:
+                        <input type="number" id="particles-count-value" class="num-input" min="1" max="100" value="5">
+                    </label>
+                    <input type="range" id="particles-count" min="1" max="100" value="5">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label" for="particles-blur">Размытие:
+                        <input type="number" id="particles-blur-value" class="num-input" min="0" max="100" value="0">
+                    </label>
+                    <input type="range" id="particles-blur" min="0" max="100" value="0">
                 </div>
 
                 <div class="setting-group">
@@ -193,8 +250,9 @@
                 </div>
 
                 <div class="setting-group">
-                    <label class="setting-label" for="particles-blur">Размытие: <span id="particles-blur-value">0</span></label>
-                    <input type="range" id="particles-blur" min="0" max="10" value="0">
+                    <span class="setting-label">Цвета частиц</span>
+                    <div class="multi-color-list" id="particles-colors"></div>
+                    <button type="button" id="particles-color-add" class="mini-btn">+ Добавить цвет</button>
                 </div>
             </div>
 
@@ -222,6 +280,13 @@
             </div>
 
             <button id="reset-settings" class="reset-btn">Сбросить настройки</button>
+
+            <a href="https://github.com/Despenced/schedule" target="_blank" rel="noopener noreferrer" class="settings-footer-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.09.68-.22.68-.49 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.7.12 2.5.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.33 4.8-4.56 5.05.36.32.68.95.68 1.91 0 1.38-.01 2.5-.01 2.84 0 .27.18.59.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/>
+                </svg>
+                <span>Открыть репозиторий на GitHub</span>
+            </a>
         </div>
     </aside>
 
@@ -248,6 +313,6 @@
         </section>
     </main>
 
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>
