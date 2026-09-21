@@ -93,11 +93,12 @@ function pickTextColor(hex) {
     return L > 160 ? '#0f172a' : '#ffffff';
 }
 
+/* Иконка предмета — размер задан и атрибутами, и CSS-классом */
 function getSubjectIcon(subject) {
     const key = subject.toLowerCase().trim();
     const iconName = SUBJECT_ICON_MAP[key] || 'bookClosed';
     const path = ICON_PATHS[iconName];
-    return `<svg class="subject-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+    return `<svg class="subject-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 }
 
 function getSchoolDay(n) { return DAYS_RU[n] ? n : 'monday'; }
@@ -843,8 +844,6 @@ function buildClockHtml(remaining) {
 
 function rollClockDigit(digitEl, newVal) {
     if (!digitEl) return;
-
-    // Убираем все «уезжающие» слои от предыдущих анимаций, чтобы не копились
     digitEl.querySelectorAll('.clock-digit-exit').forEach(el => el.remove());
 
     const layers = digitEl.querySelectorAll('.clock-digit-layer');
@@ -852,10 +851,8 @@ function rollClockDigit(digitEl, newVal) {
     if (!cur) return;
     if (cur.textContent === newVal) return;
 
-    // Старый слой → уезжает вверх
     cur.classList.add('clock-digit-exit');
 
-    // Новый слой → въезжает снизу
     const next = document.createElement('span');
     next.className = 'clock-digit-layer clock-digit-enter';
     next.textContent = newVal;
