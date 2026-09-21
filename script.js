@@ -18,6 +18,7 @@ const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 const DEFAULT_SETTINGS = {
     theme: 'light',
     customThemeColor: '#1e1b4b',
+    customBaseTheme: 'light',
     timerStyle: 'ring',
     accentColor: '#6366f1',
     lessonColor: '#6366f1',
@@ -136,27 +137,19 @@ function updateTempBadge() {
     badge.hidden = false;
 }
 
-/* === Кастомная тема === */
-function applyCustomThemeVars(hex) {
+/* === Свой цвет боксов === */
+function applyCustomSurfaceVars(hex) {
     const rgb = hexToRgb(hex);
-    const lum = (0.2126*rgb.r + 0.7152*rgb.g + 0.0722*rgb.b) / 255;
-    const isDark = lum < 0.5;
     const root = document.documentElement.style;
-    root.setProperty('--bg', hex);
     root.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.75)`);
     root.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
     root.setProperty('--surface-solid', hex);
-    root.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
-    root.setProperty('--text', isDark ? '#f1f5f9' : '#0f172a');
-    root.setProperty('--text-muted', isDark ? '#94a3b8' : '#64748b');
-    root.setProperty('--border', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
-    root.setProperty('--ring-bg', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
+    root.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`);
 }
 
-function clearCustomThemeVars() {
+function clearCustomSurfaceVars() {
     const root = document.documentElement.style;
-    ['--bg', '--surface', '--surface-strong', '--surface-solid', '--surface-2',
-     '--text', '--text-muted', '--border', '--ring-bg'].forEach(v => root.removeProperty(v));
+    ['--surface', '--surface-strong', '--surface-solid', '--surface-2'].forEach(v => root.removeProperty(v));
 }
 
 /* === Частицы === */
@@ -329,6 +322,9 @@ function loadSettings() {
     if (explicitTheme && ['light', 'dark', 'custom'].includes(savedTheme)) settings.theme = savedTheme;
     else settings.theme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
 
+    if (!['light', 'dark'].includes(settings.customBaseTheme)) {
+        settings.customBaseTheme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
+    }
     if (!['ring', 'bar', 'hearts', 'clock'].includes(settings.timerStyle)) settings.timerStyle = 'ring';
     if (!['orbs', 'particles', 'gradient', 'none'].includes(settings.backgroundMode)) settings.backgroundMode = 'orbs';
     if (!['dot', 'heart', 'triangle', 'random'].includes(settings.particlesShape)) settings.particlesShape = 'dot';
@@ -372,10 +368,11 @@ function glowToBlur(i) { return i === 'soft' ? '8px' : i === 'strong' ? '18px' :
 function applySettings() {
     // Тема
     if (settings.theme === 'custom') {
-        document.documentElement.setAttribute('data-theme', 'custom');
-        applyCustomThemeVars(settings.customThemeColor);
+        const base = settings.customBaseTheme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', base);
+        applyCustomSurfaceVars(settings.customThemeColor);
     } else {
-        clearCustomThemeVars();
+        clearCustomSurfaceVars();
         document.documentElement.setAttribute('data-theme', settings.theme);
     }
 
@@ -386,7 +383,6 @@ function applySettings() {
     document.documentElement.style.setProperty('--heart-outline-override', settings.heartOutlineColor);
     document.documentElement.style.setProperty('--glow-blur-override', glowToBlur(settings.glowIntensity));
 
-    // Орбы
     if (settings.orbsColors[0]) document.documentElement.style.setProperty('--orb-1', settings.orbsColors[0]);
     if (settings.orbsColors[1]) document.documentElement.style.setProperty('--orb-2', settings.orbsColors[1]);
     if (settings.orbsColors[2]) document.documentElement.style.setProperty('--orb-3', settings.orbsColors[2]);
@@ -409,12 +405,12 @@ function applySettings() {
 
     const pc = document.getElementById('particles-count');
     const pcv = document.getElementById('particles-count-value');
-    if (pc) pc.value = settings.particlesCount;
+    if (pc) pc.value = Math.min(settings.particlesCount, 10);
     if (pcv) pcv.value = settings.particlesCount;
 
     const pb = document.getElementById('particles-blur');
     const pbv = document.getElementById('particles-blur-value');
-    if (pb) pb.value = settings.particlesBlur;
+    if (pb) pb.value = Math.min(settings.particlesBlur, 10);
     if (pbv) pbv.value = settings.particlesBlur;
 
     const ga = document.getElementById('gradient-angle');
@@ -444,7 +440,6 @@ function applySettings() {
     applyBackground();
 }
 
-/* === Мульти-цвета === */
 function renderMultiColorList(containerId, colors, removable) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -484,7 +479,6 @@ function bindMultiColorList(containerId, key, removable) {
     });
 }
 
-/* === Хинт уведомлений === */
 function updateNotifyHint() {
     const hint = document.getElementById('notify-hint');
     if (!hint) return;
@@ -495,7 +489,6 @@ function updateNotifyHint() {
     else hint.textContent = 'Ожидается разрешение...';
 }
 
-/* === UI настроек === */
 function initSettingsUI() {
     const panel = document.getElementById('settings-panel');
     const overlay = document.getElementById('settings-overlay');
@@ -508,7 +501,11 @@ function initSettingsUI() {
 
     document.getElementById('theme-switch').addEventListener('click', e => {
         const btn = e.target.closest('.seg-btn'); if (!btn) return;
-        settings.theme = btn.dataset.themeValue;
+        const newTheme = btn.dataset.themeValue;
+        if (newTheme === 'custom' && settings.theme !== 'custom') {
+            settings.customBaseTheme = settings.theme === 'dark' ? 'dark' : 'light';
+        }
+        settings.theme = newTheme;
         localStorage.setItem('theme-explicit', '1');
         applySettings(); saveSettings();
     });
@@ -597,21 +594,24 @@ function initSettingsUI() {
         });
     });
 
+    // === Ползунки и числа для частиц ===
     const pc = document.getElementById('particles-count');
     const pcv = document.getElementById('particles-count-value');
+    // Слайдер: 1..10
     if (pc) pc.addEventListener('input', () => {
-        const v = clamp(parseInt(pc.value, 10) || 1, 1, 100);
+        const v = clamp(parseInt(pc.value, 10) || 1, 1, 10);
         settings.particlesCount = v;
         if (pcv) pcv.value = v;
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
+    // Числовое поле: 1..100
     if (pcv) pcv.addEventListener('input', () => {
         let v = parseInt(pcv.value, 10);
         if (isNaN(v)) return;
         v = clamp(v, 1, 100);
         settings.particlesCount = v;
-        if (pc) pc.value = v;
+        if (pc) pc.value = Math.min(v, 10);
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
@@ -624,19 +624,21 @@ function initSettingsUI() {
 
     const pb = document.getElementById('particles-blur');
     const pbv = document.getElementById('particles-blur-value');
+    // Слайдер: 0..10
     if (pb) pb.addEventListener('input', () => {
-        const v = clamp(parseInt(pb.value, 10) || 0, 0, 100);
+        const v = clamp(parseInt(pb.value, 10) || 0, 0, 10);
         settings.particlesBlur = v;
         if (pbv) pbv.value = v;
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
+    // Числовое поле: 0..100
     if (pbv) pbv.addEventListener('input', () => {
         let v = parseInt(pbv.value, 10);
         if (isNaN(v)) return;
         v = clamp(v, 0, 100);
         settings.particlesBlur = v;
-        if (pb) pb.value = v;
+        if (pb) pb.value = Math.min(v, 10);
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
@@ -669,6 +671,7 @@ function initSettingsUI() {
         settings = { ...DEFAULT_SETTINGS };
         localStorage.removeItem('theme-explicit');
         settings.theme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
+        settings.customBaseTheme = settings.theme;
         settings.heartOutlineColor = settings.lessonColor;
         applySettings(); saveSettings(); renderStatus(); renderSchedule(selectedDay);
     });
@@ -797,7 +800,7 @@ function formatProgressDetail(event) {
     return `${formatMinutesPretty(elapsedMin)} из ${formatMinutesPretty(totalMin)}`;
 }
 
-/* === Сердца (половинки) === */
+/* === Сердца с половинками === */
 function heartsFillFraction(progress, type, mode) {
     if (mode === 'upcoming') return 10;
     return type === 'lesson' ? (1 - progress) * 10 : progress * 10;
@@ -820,9 +823,9 @@ function buildHeartsHtml(filledFraction, bounce) {
     return html;
 }
 
-/* === Часы (слот-машина) === */
-function clockNumSpan(value, animated) {
-    return `<span class="clock-num${animated ? ' clock-num-in' : ''}">${pad2(value)}</span>`;
+/* === Часы (слот-машина по цифрам) === */
+function clockDigitHtml(digit) {
+    return `<span class="clock-digit"><span class="clock-digit-cur">${digit}</span></span>`;
 }
 
 function buildClockHtml(remaining) {
@@ -830,38 +833,55 @@ function buildClockHtml(remaining) {
     const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
     const showH = h > 0;
+    const hs = pad2(h);
+    const ms = pad2(m);
+    const ss = pad2(s);
     return `
         <div class="status-clock ${showH ? '' : 'no-hours'}">
             <div class="clock-part-h">
-                <span class="clock-segment" data-unit="h">${clockNumSpan(h, false)}</span>
+                <span class="clock-segment" data-unit="h">${clockDigitHtml(hs[0])}${clockDigitHtml(hs[1])}</span>
                 <span class="clock-sep">|</span>
             </div>
-            <span class="clock-segment" data-unit="m">${clockNumSpan(m, false)}</span>
+            <span class="clock-segment" data-unit="m">${clockDigitHtml(ms[0])}${clockDigitHtml(ms[1])}</span>
             <span class="clock-sep">|</span>
-            <span class="clock-segment" data-unit="s">${clockNumSpan(s, false)}</span>
+            <span class="clock-segment" data-unit="s">${clockDigitHtml(ss[0])}${clockDigitHtml(ss[1])}</span>
         </div>
     `;
 }
 
-function updateClockSegment(seg, value) {
-    if (!seg) return;
-    const cur = seg.querySelector('.clock-num');
+function rollClockDigit(digitEl, newVal) {
+    if (!digitEl) return;
+    const cur = digitEl.querySelector('.clock-digit-cur');
     if (!cur) return;
-    const newVal = pad2(value);
-    if (cur.textContent === newVal) return;
+    const oldVal = cur.textContent;
+    if (oldVal === newVal) return;
 
-    // исходящее число
+    // Убираем старый исходящий, если ещё висит
+    const existingOut = digitEl.querySelector('.clock-digit-out');
+    if (existingOut) existingOut.remove();
+
+    // Исходящая цифра (уезжает вверх)
     const out = document.createElement('span');
-    out.className = 'clock-num clock-num-out';
-    out.textContent = cur.textContent;
-    seg.appendChild(out);
-    setTimeout(() => out.remove(), 450);
+    out.className = 'clock-digit-out';
+    out.textContent = oldVal;
+    digitEl.appendChild(out);
 
-    // входящее
+    // Обновляем текущую (въезжает снизу)
     cur.textContent = newVal;
-    cur.classList.remove('clock-num-in');
+    cur.classList.remove('clock-digit-in');
     void cur.offsetWidth;
-    cur.classList.add('clock-num-in');
+    cur.classList.add('clock-digit-in');
+
+    setTimeout(() => out.remove(), 450);
+}
+
+function updateClockSegment(seg, newValue) {
+    if (!seg) return;
+    const str = pad2(newValue);
+    const digits = seg.querySelectorAll('.clock-digit');
+    if (digits.length < 2) return;
+    rollClockDigit(digits[0], str[0]);
+    rollClockDigit(digits[1], str[1]);
 }
 
 function updateClockNumbers(remaining) {
