@@ -642,7 +642,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     font-size: 0.85em;
 }
 
-/* === Часы (слот-машина по цифрам) === */
+/* === Часы === */
 .status-clock {
     display: flex;
     justify-content: center;
@@ -668,7 +668,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     line-height: 1;
 }
 
-/* Контейнер одной цифры с обрезкой по вертикали */
 .clock-digit {
     position: relative;
     display: inline-block;
@@ -682,7 +681,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     line-height: 1;
 }
 
-/* Слой цифры — абсолютный, заполняет контейнер */
 .clock-digit-layer {
     position: absolute;
     top: 0;
@@ -697,11 +695,9 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     backface-visibility: hidden;
 }
 
-/* Въезжающая снизу */
 .clock-digit-enter {
     animation: clock-digit-enter 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
 }
-/* Уезжающая вверх */
 .clock-digit-exit {
     animation: clock-digit-exit 0.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
@@ -733,6 +729,20 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     .clock-digit-exit { animation: none; }
 }
 
+/* Иконка предмета. Жёстко фиксированный размер — не может «раздуться» */
+.subject-icon {
+    display: block;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px;
+    min-height: 18px;
+    max-width: 18px;
+    max-height: 18px;
+    flex-shrink: 0;
+    color: var(--accent);
+    stroke-width: 2;
+}
+
 /* Подпись предмета */
 .status-ring-subject {
     margin-top: 8px;
@@ -751,7 +761,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     flex-wrap: wrap;
 }
 .status-ring-subject span { overflow-wrap: anywhere; word-break: break-word; }
-.status-ring-subject .subject-icon { color: var(--accent); }
 
 .status-text-only {
     font-size: 0.95rem;
@@ -816,7 +825,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     font-size: 0.92rem;
     letter-spacing: -0.01em;
 }
-.subject-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent); stroke-width: 2; }
 
 /* Доступность */
 @media (prefers-reduced-transparency: reduce) {
@@ -872,6 +880,13 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     .status-ring-time { font-size: 1.35rem; }
     .status-ring-label { max-width: 78px; }
     .heart-icon { width: 22px; height: 22px; }
-    .subject-icon { width: 16px; height: 16px; }
-    .status-clock { font-size: 1.6rem; }
+    .subject-icon {
+        width: 16px !important;
+        height: 16px !important;
+        min-width: 16px;
+        min-height: 16px;
+        max-width: 16px;
+        max-height: 16px;
     }
+    .status-clock { font-size: 1.6rem; }
+                        }
