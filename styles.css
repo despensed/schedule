@@ -12,7 +12,6 @@
     --lesson-color: var(--lesson-color-override, #6366f1);
     --break-color: var(--break-color-override, #f59e0b);
     --heart-outline-color: var(--heart-outline-override, #6366f1);
-    --glow-blur: var(--glow-blur-override, 0px);
     --ring-bg: rgba(15, 23, 42, 0.08);
     --shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
     --orb-1: #a5b4fc;
@@ -481,10 +480,24 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     opacity: 0.42;
 }
 
-#home[class*="event-"] .ring-fg,
-#home[class*="event-"] .status-bar-fill,
-#home[class*="event-"] .heart-fill {
-    filter: drop-shadow(0 0 var(--glow-blur, 0px) var(--event-color));
+/* === Свечение: применяется ТОЛЬКО когда включено === */
+:root[data-glow="soft"] #home[class*="event-"] .ring-fg,
+:root[data-glow="soft"] #home[class*="event-"] .status-bar-fill,
+:root[data-glow="soft"] #home[class*="event-"] .heart-fill {
+    filter: drop-shadow(0 0 8px var(--event-color));
+}
+:root[data-glow="strong"] #home[class*="event-"] .ring-fg,
+:root[data-glow="strong"] #home[class*="event-"] .status-bar-fill,
+:root[data-glow="strong"] #home[class*="event-"] .heart-fill {
+    filter: drop-shadow(0 0 18px var(--event-color));
+}
+
+/* Свечение цифр часов — text-shadow (это текст, не shape) */
+:root[data-glow="soft"] .status-clock .clock-segment {
+    text-shadow: 0 0 8px var(--event-color);
+}
+:root[data-glow="strong"] .status-clock .clock-segment {
+    text-shadow: 0 0 18px var(--event-color);
 }
 
 /* Кольцо */
@@ -494,13 +507,18 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     margin: 0 auto;
     width: 190px; height: 190px;
 }
-.status-ring-svg { width: 190px; height: 190px; transform: rotate(-90deg); display: block; }
+.status-ring-svg {
+    width: 190px; height: 190px;
+    transform: rotate(-90deg);
+    display: block;
+    overflow: visible;   /* ← ключевое: даёт свечению выйти за пределы viewBox */
+}
 .ring-bg { fill: none; stroke: var(--ring-bg); stroke-width: 8; transition: stroke 0.35s ease; }
 .ring-fg {
     fill: none;
     stroke-width: 8;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.5s linear, stroke 0.35s ease, filter 0.3s ease, opacity 0.3s ease;
+    transition: stroke-dashoffset 0.5s linear, stroke 0.35s ease, opacity 0.3s ease;
 }
 .ring-lesson .ring-fg { stroke: var(--lesson-color); }
 .ring-break .ring-fg { stroke: var(--break-color); }
@@ -570,7 +588,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 .status-bar-fill {
     height: 100%;
     border-radius: 100px;
-    transition: width 0.5s linear, background-color 0.35s ease, filter 0.3s ease, opacity 0.3s ease;
+    transition: width 0.5s linear, background-color 0.35s ease, opacity 0.3s ease;
 }
 
 /* Сердца */
@@ -601,7 +619,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     width: 28px; height: 28px;
     flex-shrink: 0;
     overflow: visible;
-    transition: filter 0.3s ease;
 }
 .heart-icon .heart-outline {
     fill: none;
@@ -613,7 +630,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 .heart-icon .heart-fill {
     fill: var(--event-color, var(--lesson-color));
     stroke: none;
-    transition: fill 0.35s ease;
+    transition: fill 0.35s ease, filter 0.3s ease;
 }
 
 @keyframes heart-bounce {
@@ -666,6 +683,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     align-items: center;
     color: var(--event-color, var(--lesson-color));
     line-height: 1;
+    transition: text-shadow 0.3s ease;
 }
 
 .clock-digit {
@@ -729,7 +747,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     .clock-digit-exit { animation: none; }
 }
 
-/* Иконка предмета. Жёстко фиксированный размер — не может «раздуться» */
+/* Иконка предмета */
 .subject-icon {
     display: block;
     width: 18px !important;
@@ -889,4 +907,4 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
         max-height: 16px;
     }
     .status-clock { font-size: 1.6rem; }
-                        }
+}
