@@ -9,25 +9,25 @@ let tickCounter = 0;
 
 const DAYS_EN = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAYS_RU = {
-    monday: 'Понедельник',
-    tuesday: 'Вторник',
-    wednesday: 'Среда',
-    thursday: 'Четверг',
-    friday: 'Пятница'
+    monday: 'Понедельник', tuesday: 'Вторник', wednesday: 'Среда',
+    thursday: 'Четверг', friday: 'Пятница'
 };
 const DAYS_SHORT = { monday: 'Пн', tuesday: 'Вт', wednesday: 'Ср', thursday: 'Чт', friday: 'Пт' };
 const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 
 const DEFAULT_SETTINGS = {
     theme: 'light',
+    customThemeColor: '#1e1b4b',
     timerStyle: 'ring',
     accentColor: '#6366f1',
     lessonColor: '#6366f1',
     breakColor: '#f59e0b',
     backgroundMode: 'orbs',
+    orbsColors: ['#a5b4fc', '#f0abfc', '#93c5fd'],
     particlesCount: 5,
     particlesShape: 'dot',
     particlesBlur: 0,
+    particlesColors: ['#6366f1'],
     gradientColor1: '#a5b4fc',
     gradientColor2: '#f0abfc',
     gradientAngle: 135,
@@ -61,25 +61,12 @@ const ICON_PATHS = {
 };
 
 const SUBJECT_ICON_MAP = {
-    'русский язык': 'book',
-    'литература': 'book',
-    'родная литература': 'book',
-    'родной язык': 'book',
-    'история': 'history',
-    'обществознание': 'users',
-    'география': 'globe',
-    'биология': 'leaf',
-    'алгебра': 'sigma',
-    'геометрия': 'triangle',
-    'вероятность и статистика': 'chart',
-    'иностранный язык': 'languages',
-    'физика': 'atom',
-    'информатика': 'code',
-    'химия': 'flask',
-    'физическая культура': 'activity',
-    'обж': 'shield',
-    'индивидуальный проект': 'lightbulb',
-    'разговоры о важном': 'message',
+    'русский язык': 'book', 'литература': 'book', 'родная литература': 'book',
+    'родной язык': 'book', 'история': 'history', 'обществознание': 'users',
+    'география': 'globe', 'биология': 'leaf', 'алгебра': 'sigma', 'геометрия': 'triangle',
+    'вероятность и статистика': 'chart', 'иностранный язык': 'languages', 'физика': 'atom',
+    'информатика': 'code', 'химия': 'flask', 'физическая культура': 'activity',
+    'обж': 'shield', 'индивидуальный проект': 'lightbulb', 'разговоры о важном': 'message',
     'государственный(башкирский)язык рб': 'languages',
     'государственный (башкирский) язык рб': 'languages'
 };
@@ -89,16 +76,18 @@ const HEART_PATH = 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7
 const SYSTEM_THEME_MQL = window.matchMedia('(prefers-color-scheme: dark)');
 
 /* === Утилиты === */
-function hasSubject(subject) {
-    return typeof subject === 'string' && subject.trim().length > 0;
+function hasSubject(s) { return typeof s === 'string' && s.trim().length > 0; }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function hexToRgb(hex) {
+    const c = String(hex).replace('#', '');
+    if (c.length !== 6) return { r: 99, g: 102, b: 241 };
+    return { r: parseInt(c.substr(0, 2), 16), g: parseInt(c.substr(2, 2), 16), b: parseInt(c.substr(4, 2), 16) };
 }
 
 function pickTextColor(hex) {
-    const c = String(hex).replace('#', '');
-    if (c.length !== 6) return '#ffffff';
-    const r = parseInt(c.substr(0, 2), 16);
-    const g = parseInt(c.substr(2, 2), 16);
-    const b = parseInt(c.substr(4, 2), 16);
+    const { r, g, b } = hexToRgb(hex);
     const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     return L > 160 ? '#0f172a' : '#ffffff';
 }
@@ -110,11 +99,9 @@ function getSubjectIcon(subject) {
     return `<svg class="subject-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 }
 
-function getSchoolDay(dayName) {
-    return DAYS_RU[dayName] ? dayName : 'monday';
-}
+function getSchoolDay(n) { return DAYS_RU[n] ? n : 'monday'; }
 
-/* === Временное расписание (override) === */
+/* === Временное расписание === */
 function getActiveTempForDay(day) {
     const t = tempScheduleData;
     if (!t || !t.active) return null;
@@ -124,9 +111,7 @@ function getActiveTempForDay(day) {
 
 function getLessonsForDay(day) {
     const temp = getActiveTempForDay(day);
-    if (temp && Array.isArray(temp.lessons)) {
-        return temp.lessons.slice();
-    }
+    if (temp && Array.isArray(temp.lessons)) return temp.lessons.slice();
     return (scheduleData && scheduleData.days && scheduleData.days[day]) || [];
 }
 
@@ -134,39 +119,50 @@ function getBellsForDay(day) {
     if (!scheduleData) return [];
     const temp = getActiveTempForDay(day);
     let mode;
-    if (temp && temp.bellsMode) {
-        mode = temp.bellsMode;
-    } else {
-        mode = (day === 'monday' || day === 'thursday') ? 'monday' : 'tuesday_friday';
-    }
+    if (temp && temp.bellsMode) mode = temp.bellsMode;
+    else mode = (day === 'monday' || day === 'thursday') ? 'monday' : 'tuesday_friday';
     return mode === 'monday' ? scheduleData.bells.monday : scheduleData.bells.tuesday_friday;
 }
 
-function dayHasLessons(day) {
-    return getLessonsForDay(day).some(hasSubject);
-}
+function dayHasLessons(day) { return getLessonsForDay(day).some(hasSubject); }
 
 function updateTempBadge() {
     const badge = document.getElementById('temp-badge');
     if (!badge) return;
     if (!tempScheduleData || !tempScheduleData.active || !tempScheduleData.day) {
-        badge.hidden = true;
-        return;
+        badge.hidden = true; return;
     }
-    const dayRu = DAYS_RU[tempScheduleData.day] || tempScheduleData.day;
-    badge.textContent = `Временное расписание · ${dayRu}`;
+    badge.textContent = `Временное расписание · ${DAYS_RU[tempScheduleData.day] || ''}`;
     badge.hidden = false;
+}
+
+/* === Кастомная тема === */
+function applyCustomThemeVars(hex) {
+    const rgb = hexToRgb(hex);
+    const lum = (0.2126*rgb.r + 0.7152*rgb.g + 0.0722*rgb.b) / 255;
+    const isDark = lum < 0.5;
+    const root = document.documentElement.style;
+    root.setProperty('--bg', hex);
+    root.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.75)`);
+    root.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
+    root.setProperty('--surface-solid', hex);
+    root.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+    root.setProperty('--text', isDark ? '#f1f5f9' : '#0f172a');
+    root.setProperty('--text-muted', isDark ? '#94a3b8' : '#64748b');
+    root.setProperty('--border', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
+    root.setProperty('--ring-bg', isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)');
+}
+
+function clearCustomThemeVars() {
+    const root = document.documentElement.style;
+    ['--bg', '--surface', '--surface-strong', '--surface-solid', '--surface-2',
+     '--text', '--text-muted', '--border', '--ring-bg'].forEach(v => root.removeProperty(v));
 }
 
 /* === Частицы === */
 const particlesState = {
-    canvas: null,
-    ctx: null,
-    list: [],
-    animId: null,
-    W: 0,
-    H: 0,
-    dpr: Math.min(window.devicePixelRatio || 1, 1.5)
+    canvas: null, ctx: null, list: [], animId: null,
+    W: 0, H: 0, dpr: Math.min(window.devicePixelRatio || 1, 1.5)
 };
 
 function particlesResize() {
@@ -177,9 +173,7 @@ function particlesResize() {
     particlesState.canvas.height = Math.floor(particlesState.H * particlesState.dpr);
     particlesState.canvas.style.width = particlesState.W + 'px';
     particlesState.canvas.style.height = particlesState.H + 'px';
-    if (particlesState.ctx) {
-        particlesState.ctx.setTransform(particlesState.dpr, 0, 0, particlesState.dpr, 0, 0);
-    }
+    if (particlesState.ctx) particlesState.ctx.setTransform(particlesState.dpr, 0, 0, particlesState.dpr, 0, 0);
 }
 
 function particlesRandomShape() {
@@ -187,9 +181,14 @@ function particlesRandomShape() {
     return shapes[Math.floor(Math.random() * shapes.length)];
 }
 
-function particlesBuildSprite(shape, size) {
+function pickParticleColor() {
+    const colors = settings.particlesColors;
+    if (!Array.isArray(colors) || colors.length === 0) return settings.accentColor || '#6366f1';
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function particlesBuildSprite(shape, size, color) {
     const blurPx = Math.max(0, settings.particlesBlur | 0);
-    const color = settings.accentColor || '#6366f1';
     const dpr = particlesState.dpr;
     const pad = blurPx * 3 + 8;
     const dim = size + pad * 2;
@@ -204,44 +203,33 @@ function particlesBuildSprite(shape, size) {
     c.translate(pad + size / 2, pad + size / 2);
 
     if (shape === 'dot') {
-        c.beginPath();
-        c.arc(0, 0, size / 2, 0, Math.PI * 2);
-        c.fill();
+        c.beginPath(); c.arc(0, 0, size / 2, 0, Math.PI * 2); c.fill();
     } else if (shape === 'heart') {
         const path = new Path2D(HEART_PATH);
-        c.save();
-        c.scale(size / 24, size / 24);
-        c.translate(-12, -12);
-        c.fill(path);
-        c.restore();
+        c.save(); c.scale(size / 24, size / 24); c.translate(-12, -12); c.fill(path); c.restore();
     } else {
         c.beginPath();
-        c.moveTo(0, -size / 2);
-        c.lineTo(size / 2, size / 2);
-        c.lineTo(-size / 2, size / 2);
-        c.closePath();
-        c.fill();
+        c.moveTo(0, -size / 2); c.lineTo(size / 2, size / 2); c.lineTo(-size / 2, size / 2);
+        c.closePath(); c.fill();
     }
-
     return { cv, dim, pad };
 }
 
 function particlesCreate() {
     let shape = settings.particlesShape;
     if (shape === 'random') shape = particlesRandomShape();
-
     const size = 24 + Math.random() * 32;
+    const color = pickParticleColor();
     return {
         x: Math.random() * particlesState.W,
         y: Math.random() * particlesState.H,
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
-        size,
-        shape,
+        size, shape,
         rotation: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 0.012,
         opacity: 0.4 + Math.random() * 0.35,
-        sprite: particlesBuildSprite(shape, size)
+        sprite: particlesBuildSprite(shape, size, color)
     };
 }
 
@@ -262,9 +250,7 @@ function particlesLoop() {
     if (!ctx) return;
     ctx.clearRect(0, 0, particlesState.W, particlesState.H);
     for (const p of particlesState.list) {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.rotation += p.rotSpeed;
+        p.x += p.vx; p.y += p.vy; p.rotation += p.rotSpeed;
         if (p.x < -p.size) p.x = particlesState.W + p.size;
         if (p.x > particlesState.W + p.size) p.x = -p.size;
         if (p.y < -p.size) p.y = particlesState.H + p.size;
@@ -279,7 +265,7 @@ function particlesStart() {
     particlesStop();
     particlesResize();
     particlesState.list = [];
-    const count = Math.max(1, Math.min(10, settings.particlesCount | 0));
+    const count = clamp(settings.particlesCount | 0, 1, 100);
     for (let i = 0; i < count; i++) particlesState.list.push(particlesCreate());
     particlesLoop();
 }
@@ -287,16 +273,12 @@ function particlesStart() {
 function particlesStop() {
     if (particlesState.animId) cancelAnimationFrame(particlesState.animId);
     particlesState.animId = null;
-    if (particlesState.ctx) {
-        particlesState.ctx.clearRect(0, 0, particlesState.W, particlesState.H);
-    }
+    if (particlesState.ctx) particlesState.ctx.clearRect(0, 0, particlesState.W, particlesState.H);
 }
 
 function particlesInit() {
     particlesState.canvas = document.getElementById('particles-canvas');
-    if (particlesState.canvas) {
-        particlesState.ctx = particlesState.canvas.getContext('2d');
-    }
+    if (particlesState.canvas) particlesState.ctx = particlesState.canvas.getContext('2d');
 
     let resizeTimer;
     window.addEventListener('resize', () => {
@@ -306,11 +288,8 @@ function particlesInit() {
     });
 
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            particlesStop();
-        } else if (settings.backgroundMode === 'particles') {
-            particlesStart();
-        }
+        if (document.hidden) particlesStop();
+        else if (settings.backgroundMode === 'particles') particlesStart();
     });
 }
 
@@ -326,7 +305,6 @@ function applyBackground() {
     particlesStop();
 
     const mode = settings.backgroundMode;
-
     if (mode === 'orbs') {
         if (bgOrbs) bgOrbs.style.display = 'block';
     } else if (mode === 'gradient') {
@@ -335,10 +313,7 @@ function applyBackground() {
             bgGrad.style.background = `linear-gradient(${settings.gradientAngle}deg, ${settings.gradientColor1}, ${settings.gradientColor2})`;
         }
     } else if (mode === 'particles') {
-        if (bgPart) {
-            bgPart.style.display = 'block';
-            particlesStart();
-        }
+        if (bgPart) { bgPart.style.display = 'block'; particlesStart(); }
     }
 }
 
@@ -347,19 +322,14 @@ function loadSettings() {
     try {
         const saved = JSON.parse(localStorage.getItem('app-settings') || '{}');
         settings = { ...DEFAULT_SETTINGS, ...saved };
-    } catch (e) {
-        settings = { ...DEFAULT_SETTINGS };
-    }
+    } catch (e) { settings = { ...DEFAULT_SETTINGS }; }
 
     const explicitTheme = localStorage.getItem('theme-explicit') === '1';
     const savedTheme = localStorage.getItem('theme');
-    if (explicitTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
-        settings.theme = savedTheme;
-    } else {
-        settings.theme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
-    }
+    if (explicitTheme && ['light', 'dark', 'custom'].includes(savedTheme)) settings.theme = savedTheme;
+    else settings.theme = SYSTEM_THEME_MQL.matches ? 'dark' : 'light';
 
-    if (!['ring', 'bar', 'hearts'].includes(settings.timerStyle)) settings.timerStyle = 'ring';
+    if (!['ring', 'bar', 'hearts', 'clock'].includes(settings.timerStyle)) settings.timerStyle = 'ring';
     if (!['orbs', 'particles', 'gradient', 'none'].includes(settings.backgroundMode)) settings.backgroundMode = 'orbs';
     if (!['dot', 'heart', 'triangle', 'random'].includes(settings.particlesShape)) settings.particlesShape = 'dot';
     if (!['off', 'soft', 'strong'].includes(settings.glowIntensity)) settings.glowIntensity = 'off';
@@ -369,10 +339,12 @@ function loadSettings() {
     if (typeof settings.gradientAngle !== 'number') settings.gradientAngle = 135;
     if (typeof settings.notificationsEnabled !== 'boolean') settings.notificationsEnabled = false;
     if (typeof settings.heartOutlineCustom !== 'boolean') settings.heartOutlineCustom = false;
-
-    if (!settings.heartOutlineCustom) {
-        settings.heartOutlineColor = settings.lessonColor;
+    if (!Array.isArray(settings.particlesColors) || !settings.particlesColors.length) settings.particlesColors = ['#6366f1'];
+    if (!Array.isArray(settings.orbsColors) || settings.orbsColors.length !== 3) {
+        settings.orbsColors = ['#a5b4fc', '#f0abfc', '#93c5fd'];
     }
+
+    if (!settings.heartOutlineCustom) settings.heartOutlineColor = settings.lessonColor;
 }
 
 function saveSettings() {
@@ -395,20 +367,29 @@ function setColorInput(id, value) {
     if (label) label.textContent = value;
 }
 
-function glowToBlur(intensity) {
-    if (intensity === 'soft') return '8px';
-    if (intensity === 'strong') return '18px';
-    return '0px';
-}
+function glowToBlur(i) { return i === 'soft' ? '8px' : i === 'strong' ? '18px' : '0px'; }
 
 function applySettings() {
-    document.documentElement.setAttribute('data-theme', settings.theme);
+    // Тема
+    if (settings.theme === 'custom') {
+        document.documentElement.setAttribute('data-theme', 'custom');
+        applyCustomThemeVars(settings.customThemeColor);
+    } else {
+        clearCustomThemeVars();
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    }
+
     document.documentElement.style.setProperty('--accent-override', settings.accentColor);
     document.documentElement.style.setProperty('--accent-text-override', pickTextColor(settings.accentColor));
     document.documentElement.style.setProperty('--lesson-color-override', settings.lessonColor);
     document.documentElement.style.setProperty('--break-color-override', settings.breakColor);
     document.documentElement.style.setProperty('--heart-outline-override', settings.heartOutlineColor);
     document.documentElement.style.setProperty('--glow-blur-override', glowToBlur(settings.glowIntensity));
+
+    // Орбы
+    if (settings.orbsColors[0]) document.documentElement.style.setProperty('--orb-1', settings.orbsColors[0]);
+    if (settings.orbsColors[1]) document.documentElement.style.setProperty('--orb-2', settings.orbsColors[1]);
+    if (settings.orbsColors[2]) document.documentElement.style.setProperty('--orb-3', settings.orbsColors[2]);
 
     setActiveSegment('theme-switch', 'themeValue', settings.theme);
     setActiveSegment('style-switch', 'style', settings.timerStyle);
@@ -422,27 +403,33 @@ function applySettings() {
     setColorInput('lesson-color', settings.lessonColor);
     setColorInput('break-color', settings.breakColor);
     setColorInput('heart-outline-color', settings.heartOutlineColor);
-
+    setColorInput('custom-theme-color', settings.customThemeColor);
     setColorInput('gradient-color1', settings.gradientColor1);
     setColorInput('gradient-color2', settings.gradientColor2);
 
     const pc = document.getElementById('particles-count');
     const pcv = document.getElementById('particles-count-value');
     if (pc) pc.value = settings.particlesCount;
-    if (pcv) pcv.textContent = settings.particlesCount;
+    if (pcv) pcv.value = settings.particlesCount;
 
     const pb = document.getElementById('particles-blur');
     const pbv = document.getElementById('particles-blur-value');
     if (pb) pb.value = settings.particlesBlur;
-    if (pbv) pbv.textContent = settings.particlesBlur;
+    if (pbv) pbv.value = settings.particlesBlur;
 
     const ga = document.getElementById('gradient-angle');
     const gav = document.getElementById('gradient-angle-value');
     if (ga) ga.value = settings.gradientAngle;
     if (gav) gav.textContent = settings.gradientAngle;
 
+    const customThemeGroup = document.getElementById('custom-theme-settings');
+    if (customThemeGroup) customThemeGroup.classList.toggle('visible', settings.theme === 'custom');
+
     const particlesGroup = document.getElementById('particles-settings');
     if (particlesGroup) particlesGroup.classList.toggle('visible', settings.backgroundMode === 'particles');
+
+    const orbsGroup = document.getElementById('orbs-settings');
+    if (orbsGroup) orbsGroup.classList.toggle('visible', settings.backgroundMode === 'orbs');
 
     const gradientGroup = document.getElementById('gradient-settings');
     if (gradientGroup) gradientGroup.classList.toggle('visible', settings.backgroundMode === 'gradient');
@@ -450,27 +437,68 @@ function applySettings() {
     const heartGroup = document.getElementById('heart-settings');
     if (heartGroup) heartGroup.classList.toggle('visible', settings.timerStyle === 'hearts');
 
+    renderMultiColorList('orbs-colors', settings.orbsColors, false);
+    renderMultiColorList('particles-colors', settings.particlesColors, true);
+
     updateNotifyHint();
     applyBackground();
 }
 
+/* === Мульти-цвета === */
+function renderMultiColorList(containerId, colors, removable) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = colors.map((c, i) => `
+        <div class="multi-color-row" data-index="${i}">
+            <input type="color" value="${c}">
+            <span class="color-value">${c}</span>
+            ${removable && colors.length > 1 ? '<button type="button" class="multi-color-del" data-del="1" aria-label="Удалить">×</button>' : ''}
+        </div>
+    `).join('');
+}
+
+function bindMultiColorList(containerId, key, removable) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    el.addEventListener('input', e => {
+        if (!e.target.matches('input[type="color"]')) return;
+        const row = e.target.closest('.multi-color-row');
+        const idx = +row.dataset.index;
+        settings[key][idx] = e.target.value;
+        const label = row.querySelector('.color-value');
+        if (label) label.textContent = e.target.value;
+        applySettings();
+        saveSettings();
+    });
+
+    el.addEventListener('click', e => {
+        const del = e.target.closest('[data-del]');
+        if (!del || !removable) return;
+        const row = e.target.closest('.multi-color-row');
+        const idx = +row.dataset.index;
+        if (settings[key].length <= 1) return;
+        settings[key].splice(idx, 1);
+        applySettings();
+        saveSettings();
+    });
+}
+
+/* === Хинт уведомлений === */
 function updateNotifyHint() {
     const hint = document.getElementById('notify-hint');
     if (!hint) return;
-    if (!('Notification' in window)) {
-        hint.textContent = 'Браузер не поддерживает уведомления';
-        return;
-    }
+    if (!('Notification' in window)) { hint.textContent = 'Браузер не поддерживает уведомления'; return; }
     if (!settings.notificationsEnabled) { hint.textContent = ''; return; }
     if (Notification.permission === 'granted') hint.textContent = 'Уведомления включены';
     else if (Notification.permission === 'denied') hint.textContent = 'Разрешение отклонено в браузере';
     else hint.textContent = 'Ожидается разрешение...';
 }
 
+/* === UI настроек === */
 function initSettingsUI() {
     const panel = document.getElementById('settings-panel');
     const overlay = document.getElementById('settings-overlay');
-
     const openPanel = () => { panel.classList.add('open'); overlay.classList.add('open'); };
     const closePanel = () => { panel.classList.remove('open'); overlay.classList.remove('open'); };
 
@@ -487,8 +515,7 @@ function initSettingsUI() {
 
     document.getElementById('notify-switch').addEventListener('click', async e => {
         const btn = e.target.closest('.seg-btn'); if (!btn) return;
-        const value = btn.dataset.notify;
-        if (value === 'on') {
+        if (btn.dataset.notify === 'on') {
             if (!('Notification' in window)) settings.notificationsEnabled = false;
             else if (Notification.permission === 'granted') settings.notificationsEnabled = true;
             else if (Notification.permission === 'denied') settings.notificationsEnabled = false;
@@ -536,21 +563,21 @@ function initSettingsUI() {
         const input = document.getElementById(`${name}-color`); if (!input) return;
         input.addEventListener('input', () => {
             settings[`${name}Color`] = input.value;
-            const label = document.getElementById(`${name}-value`);
-            if (label) label.textContent = input.value;
-            if (name === 'lesson' && !settings.heartOutlineCustom) {
-                settings.heartOutlineColor = input.value;
-            }
+            if (name === 'lesson' && !settings.heartOutlineCustom) settings.heartOutlineColor = input.value;
             applySettings(); saveSettings(); renderStatus();
         });
+    });
+
+    const customThemeColor = document.getElementById('custom-theme-color');
+    if (customThemeColor) customThemeColor.addEventListener('input', () => {
+        settings.customThemeColor = customThemeColor.value;
+        applySettings(); saveSettings();
     });
 
     const heartOutline = document.getElementById('heart-outline-color');
     if (heartOutline) heartOutline.addEventListener('input', () => {
         settings.heartOutlineColor = heartOutline.value;
         settings.heartOutlineCustom = true;
-        const label = document.getElementById('heart-outline-color-value');
-        if (label) label.textContent = heartOutline.value;
         applySettings(); saveSettings();
     });
 
@@ -566,28 +593,58 @@ function initSettingsUI() {
         const key = id === 'gradient-color1' ? 'gradientColor1' : 'gradientColor2';
         input.addEventListener('input', () => {
             settings[key] = input.value;
-            const label = document.getElementById(`${id}-value`);
-            if (label) label.textContent = input.value;
             applySettings(); saveSettings();
         });
     });
 
     const pc = document.getElementById('particles-count');
+    const pcv = document.getElementById('particles-count-value');
     if (pc) pc.addEventListener('input', () => {
-        settings.particlesCount = parseInt(pc.value, 10);
-        const label = document.getElementById('particles-count-value');
-        if (label) label.textContent = pc.value;
+        const v = clamp(parseInt(pc.value, 10) || 1, 1, 100);
+        settings.particlesCount = v;
+        if (pcv) pcv.value = v;
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
     });
-
-    const pb = document.getElementById('particles-blur');
-    if (pb) pb.addEventListener('input', () => {
-        settings.particlesBlur = parseInt(pb.value, 10);
-        const label = document.getElementById('particles-blur-value');
-        if (label) label.textContent = pb.value;
+    if (pcv) pcv.addEventListener('input', () => {
+        let v = parseInt(pcv.value, 10);
+        if (isNaN(v)) return;
+        v = clamp(v, 1, 100);
+        settings.particlesCount = v;
+        if (pc) pc.value = v;
         if (settings.backgroundMode === 'particles') particlesStart();
         saveSettings();
+    });
+    if (pcv) pcv.addEventListener('blur', () => {
+        let v = parseInt(pcv.value, 10);
+        if (isNaN(v)) v = settings.particlesCount;
+        v = clamp(v, 1, 100);
+        pcv.value = v;
+    });
+
+    const pb = document.getElementById('particles-blur');
+    const pbv = document.getElementById('particles-blur-value');
+    if (pb) pb.addEventListener('input', () => {
+        const v = clamp(parseInt(pb.value, 10) || 0, 0, 100);
+        settings.particlesBlur = v;
+        if (pbv) pbv.value = v;
+        if (settings.backgroundMode === 'particles') particlesStart();
+        saveSettings();
+    });
+    if (pbv) pbv.addEventListener('input', () => {
+        let v = parseInt(pbv.value, 10);
+        if (isNaN(v)) return;
+        v = clamp(v, 0, 100);
+        settings.particlesBlur = v;
+        if (pb) pb.value = v;
+        if (settings.backgroundMode === 'particles') particlesStart();
+        saveSettings();
+    });
+    if (pbv) pbv.addEventListener('blur', () => {
+        let v = parseInt(pbv.value, 10);
+        if (isNaN(v)) v = settings.particlesBlur;
+        v = clamp(v, 0, 100);
+        pbv.value = v;
     });
 
     const ga = document.getElementById('gradient-angle');
@@ -598,6 +655,16 @@ function initSettingsUI() {
         applyBackground(); saveSettings();
     });
 
+    const addColorBtn = document.getElementById('particles-color-add');
+    if (addColorBtn) addColorBtn.addEventListener('click', () => {
+        const last = settings.particlesColors[settings.particlesColors.length - 1] || '#6366f1';
+        settings.particlesColors.push(last);
+        applySettings(); saveSettings();
+    });
+
+    bindMultiColorList('orbs-colors', 'orbsColors', false);
+    bindMultiColorList('particles-colors', 'particlesColors', true);
+
     document.getElementById('reset-settings').addEventListener('click', () => {
         settings = { ...DEFAULT_SETTINGS };
         localStorage.removeItem('theme-explicit');
@@ -607,7 +674,7 @@ function initSettingsUI() {
     });
 }
 
-/* === Определение ближайшего события === */
+/* === События === */
 function firstLessonOfDay(day, currentSeconds, todayIdx) {
     const targetIdx = DAYS_ORDER.indexOf(day);
     if (targetIdx < 0) return null;
@@ -649,7 +716,6 @@ function getNextEvent(now, selected) {
         const dayName = todayName;
         const bells = getBellsForDay(dayName);
         const lessons = getLessonsForDay(dayName);
-
         for (let i = 0; i < bells.length; i++) {
             const bell = bells[i];
             const [sh, sm] = bell.start.split(':').map(Number);
@@ -658,7 +724,6 @@ function getNextEvent(now, selected) {
             const endTotal = eh * 3600 + em * 60;
             const breakEnd = endTotal + bell.break * 60;
             const subject = lessons[i];
-
             if (!hasSubject(subject)) continue;
 
             if (currentSeconds >= startTotal && currentSeconds < endTotal) {
@@ -703,6 +768,7 @@ function getNextEvent(now, selected) {
     return null;
 }
 
+/* === Форматирование === */
 function formatTime(seconds) {
     if (seconds < 0) seconds = 0;
     const d = Math.floor(seconds / 86400);
@@ -710,34 +776,107 @@ function formatTime(seconds) {
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     if (d > 0) return `${d}д ${h}ч`;
-    if (h > 0) return `${h}ч ${m.toString().padStart(2, '0')}м`;
-    if (m > 0) return `${m}м ${s.toString().padStart(2, '0')}с`;
+    if (h > 0) return `${h}ч ${pad2(m)}м`;
+    if (m > 0) return `${m}м ${pad2(s)}с`;
     return `${s}с`;
 }
 
-/* === Сердца === */
-function heartsFillCount(progress, type) {
-    return Math.max(0, Math.min(10,
-        type === 'lesson' ? Math.round((1 - progress) * 10) : Math.round(progress * 10)
-    ));
-}
-
-function heartClass(isFilled, fillClass, bounce) {
-    let c = 'heart-icon';
-    if (isFilled) c += ` ${fillClass}`;
-    if (bounce) c += ' bouncing';
-    return c;
+function formatMinutesPretty(totalMin) {
+    totalMin = Math.max(0, Math.round(totalMin));
+    if (totalMin < 60) return `${totalMin} мин`;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
 }
 
 function formatProgressDetail(event) {
     if (!event || !event.total || event.total < 60) return '';
     const totalMin = Math.max(1, Math.round(event.total / 60));
-    if (event.mode === 'upcoming') return `длительность ${totalMin} мин`;
-    const elapsedMin = Math.max(0, Math.min(totalMin, Math.floor(event.elapsed / 60)));
-    return `${elapsedMin} из ${totalMin} мин`;
+    if (event.mode === 'upcoming') return 'до начала';
+    const elapsedMin = clamp(Math.floor(event.elapsed / 60), 0, totalMin);
+    return `${formatMinutesPretty(elapsedMin)} из ${formatMinutesPretty(totalMin)}`;
 }
 
-/* === Рендер «Сейчас/Далее» === */
+/* === Сердца (половинки) === */
+function heartsFillFraction(progress, type, mode) {
+    if (mode === 'upcoming') return 10;
+    return type === 'lesson' ? (1 - progress) * 10 : progress * 10;
+}
+
+function heartSvgMarkup(value, bounce, idx) {
+    const clip = `inset(0 ${(1 - value) * 100}% 0 0)`;
+    return `<svg class="heart-icon${bounce ? ' bouncing' : ''}" style="--i:${idx}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path class="heart-outline" d="${HEART_PATH}" />
+        <path class="heart-fill" style="clip-path:${clip};-webkit-clip-path:${clip};" d="${HEART_PATH}" />
+    </svg>`;
+}
+
+function buildHeartsHtml(filledFraction, bounce) {
+    let html = '';
+    for (let i = 0; i < 10; i++) {
+        const v = clamp(filledFraction - i, 0, 1);
+        html += heartSvgMarkup(v, bounce, i);
+    }
+    return html;
+}
+
+/* === Часы (слот-машина) === */
+function clockNumSpan(value, animated) {
+    return `<span class="clock-num${animated ? ' clock-num-in' : ''}">${pad2(value)}</span>`;
+}
+
+function buildClockHtml(remaining) {
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
+    const showH = h > 0;
+    return `
+        <div class="status-clock ${showH ? '' : 'no-hours'}">
+            <div class="clock-part-h">
+                <span class="clock-segment" data-unit="h">${clockNumSpan(h, false)}</span>
+                <span class="clock-sep">|</span>
+            </div>
+            <span class="clock-segment" data-unit="m">${clockNumSpan(m, false)}</span>
+            <span class="clock-sep">|</span>
+            <span class="clock-segment" data-unit="s">${clockNumSpan(s, false)}</span>
+        </div>
+    `;
+}
+
+function updateClockSegment(seg, value) {
+    if (!seg) return;
+    const cur = seg.querySelector('.clock-num');
+    if (!cur) return;
+    const newVal = pad2(value);
+    if (cur.textContent === newVal) return;
+
+    // исходящее число
+    const out = document.createElement('span');
+    out.className = 'clock-num clock-num-out';
+    out.textContent = cur.textContent;
+    seg.appendChild(out);
+    setTimeout(() => out.remove(), 450);
+
+    // входящее
+    cur.textContent = newVal;
+    cur.classList.remove('clock-num-in');
+    void cur.offsetWidth;
+    cur.classList.add('clock-num-in');
+}
+
+function updateClockNumbers(remaining) {
+    const clock = document.querySelector('.status-clock');
+    if (!clock) return;
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
+    clock.classList.toggle('no-hours', h === 0);
+    updateClockSegment(clock.querySelector('.clock-segment[data-unit="h"]'), h);
+    updateClockSegment(clock.querySelector('.clock-segment[data-unit="m"]'), m);
+    updateClockSegment(clock.querySelector('.clock-segment[data-unit="s"]'), s);
+}
+
+/* === Рендер статуса === */
 function renderStatus() {
     const home = document.querySelector('#home');
     if (!home) return;
@@ -746,6 +885,7 @@ function renderStatus() {
 
     home.classList.toggle('event-lesson', !!event && event.type === 'lesson');
     home.classList.toggle('event-break', !!event && event.type === 'break');
+    home.classList.toggle('event-upcoming', !!event && event.mode === 'upcoming');
 
     const todayName = DAYS_EN[now.getDay()];
     const isOtherDay = event && event.day && event.day !== todayName;
@@ -757,7 +897,6 @@ function renderStatus() {
         updateTitle('', null);
         return;
     }
-
     if (!event) {
         home.innerHTML = '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Уроков нет · время вне расписания</p>';
         home.dataset.key = 'empty';
@@ -772,7 +911,8 @@ function renderStatus() {
     else if (isOtherDay) title = `Далее · ${DAYS_SHORT[event.day] || ''}`;
     else title = 'Далее';
 
-    const progress = event.total > 0 ? (event.elapsed / event.total) : 0;
+    const progress = event.mode === 'upcoming' ? 1 :
+        (event.total > 0 ? event.elapsed / event.total : 0);
     const bounce = settings.heartAnimation === 'bounce';
     const detail = formatProgressDetail(event);
     const key = `${settings.timerStyle}|${event.type}|${event.mode}|${event.subject}|${event.day}|${event.index}|${title}|${bounce}|${detail}`;
@@ -793,19 +933,18 @@ function renderStatus() {
                 </div>
             `;
         } else if (settings.timerStyle === 'hearts') {
-            const filled = heartsFillCount(progress, event.type);
-            const fillClass = event.type === 'lesson' ? 'filled' : 'filled-break';
-            let hearts = '';
-            for (let i = 0; i < 10; i++) {
-                const cls = heartClass(i < filled, fillClass, bounce);
-                hearts += `<svg class="${cls}" style="--i:${i}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="${HEART_PATH}"/></svg>`;
-            }
+            const filled = heartsFillFraction(progress, event.type, event.mode);
             timerHtml = `
                 <div class="status-hearts">
                     <div class="status-hearts-time">${timeStr}</div>
-                    <div class="hearts-row">${hearts}</div>
+                    <div class="hearts-row">${buildHeartsHtml(filled, bounce)}</div>
                     <div class="status-hearts-label">${event.label}${detail ? ` · ${detail}` : ''}</div>
                 </div>
+            `;
+        } else if (settings.timerStyle === 'clock') {
+            timerHtml = `
+                ${buildClockHtml(event.remaining)}
+                <div class="status-clock-label">${event.label}${detail ? ` · ${detail}` : ''}</div>
             `;
         } else {
             const radius = 52;
@@ -834,7 +973,7 @@ function renderStatus() {
             <div class="status-ring-subject">
                 ${iconHtml}
                 <span>${event.subject}</span>
-                ${detail && settings.timerStyle !== 'hearts' ? `<span class="status-detail-inline">· ${detail}</span>` : ''}
+                ${detail && settings.timerStyle !== 'hearts' && settings.timerStyle !== 'clock' ? `<span class="status-detail-inline">· ${detail}</span>` : ''}
             </div>
         `;
         home.dataset.key = key;
@@ -858,11 +997,19 @@ function renderStatus() {
             const fill = home.querySelector('.status-bar-fill');
             if (fill) fill.style.width = `${progress * 100}%`;
         } else if (settings.timerStyle === 'hearts') {
-            const filled = heartsFillCount(progress, event.type);
-            const fillClass = event.type === 'lesson' ? 'filled' : 'filled-break';
-            home.querySelectorAll('.heart-icon').forEach((icon, i) => {
-                icon.setAttribute('class', heartClass(i < filled, fillClass, bounce));
+            const filled = heartsFillFraction(progress, event.type, event.mode);
+            const svgs = home.querySelectorAll('.heart-icon');
+            svgs.forEach((svg, i) => {
+                const v = clamp(filled - i, 0, 1);
+                const fillPath = svg.querySelector('.heart-fill');
+                if (fillPath) {
+                    const clip = `inset(0 ${(1 - v) * 100}% 0 0)`;
+                    fillPath.style.clipPath = clip;
+                    fillPath.style.webkitClipPath = clip;
+                }
             });
+        } else if (settings.timerStyle === 'clock') {
+            updateClockNumbers(event.remaining);
         }
     }
 
@@ -872,10 +1019,7 @@ function renderStatus() {
 
 function updateTitle(timeStr, event) {
     const t = timeStr ? `${timeStr} · Расписание` : 'Расписание';
-    if (t !== lastTitleStr) {
-        document.title = t;
-        lastTitleStr = t;
-    }
+    if (t !== lastTitleStr) { document.title = t; lastTitleStr = t; }
 }
 
 let lastNotifiedKey = null;
@@ -888,7 +1032,7 @@ function maybeNotify(event) {
     if (key === lastNotifiedKey) return;
     lastNotifiedKey = key;
     try {
-        new Notification('Урок начался', { body: event.subject, tag: 'lesson-start', silent: false });
+        new Notification('Урок начался', { body: event.subject, tag: 'lesson-start' });
     } catch (e) {}
 }
 
@@ -913,8 +1057,7 @@ function renderSchedule(day) {
     if (!scheduleData) return;
 
     document.querySelectorAll('nav ul li a').forEach(a => {
-        a.classList.remove('active');
-        a.classList.remove('today');
+        a.classList.remove('active', 'today');
         if (a.dataset.day === day) a.classList.add('active');
         if (a.dataset.day === currentActualDay) a.classList.add('today');
     });
@@ -975,17 +1118,13 @@ function startStatusInterval() {
     statusInterval = setInterval(tick, 1000);
     tick();
 }
-
-function stopStatusInterval() {
-    if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
-}
+function stopStatusInterval() { if (statusInterval) { clearInterval(statusInterval); statusInterval = null; } }
 
 /* === Навигация === */
 function writeHash(day) {
     const target = `#${day}`;
     if (location.hash === target) return;
-    try { history.replaceState(null, '', target); }
-    catch (e) { location.hash = day; }
+    try { history.replaceState(null, '', target); } catch (e) { location.hash = day; }
 }
 
 function readHashDay() {
@@ -1065,11 +1204,7 @@ async function loadSchedule() {
     } catch (e) {
         try {
             const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
-                console.warn('Используем кеш расписания:', e.message);
-                if (badge) badge.hidden = false;
-                return JSON.parse(cached);
-            }
+            if (cached) { if (badge) badge.hidden = false; return JSON.parse(cached); }
         } catch (e2) {}
         throw e;
     }
@@ -1078,19 +1213,13 @@ async function loadSchedule() {
 async function loadTempSchedule() {
     try {
         const r = await fetch('schedule_temp.json', { cache: 'no-cache' });
-        if (!r.ok) {
-            if (r.status === 404) return null;
-            throw new Error(`HTTP ${r.status}`);
-        }
+        if (!r.ok) { if (r.status === 404) return null; throw new Error(`HTTP ${r.status}`); }
         const data = await r.json();
         if (!data || typeof data !== 'object') return null;
         if (!data.active) return null;
         if (!data.day || !Array.isArray(data.lessons)) return null;
         return data;
-    } catch (e) {
-        // Нет файла или битый JSON — просто работаем без override
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 /* === Init === */
@@ -1105,6 +1234,7 @@ async function init() {
     if (SYSTEM_THEME_MQL.addEventListener) {
         SYSTEM_THEME_MQL.addEventListener('change', (e) => {
             if (localStorage.getItem('theme-explicit') === '1') return;
+            if (settings.theme === 'custom') return;
             settings.theme = e.matches ? 'dark' : 'light';
             applySettings(); saveSettings();
         });
@@ -1154,9 +1284,8 @@ async function init() {
                 }
             });
         }
-
     } catch (error) {
-        console.error('Ошибка загрузки расписания:', error);
+        console.error('Ошибка загрузки:', error);
         document.querySelector('#home').innerHTML =
             '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Ошибка загрузки данных.</p>';
     }
