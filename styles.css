@@ -38,20 +38,6 @@
     --orb-opacity: 0.5;
 }
 
-/* Fallback для custom — если JS не успел */
-[data-theme="custom"] {
-    --bg: #1e1b4b;
-    --surface: rgba(30, 27, 75, 0.75);
-    --surface-strong: rgba(30, 27, 75, 0.9);
-    --surface-solid: #1e1b4b;
-    --surface-2: rgba(30, 27, 75, 0.5);
-    --text: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border: rgba(255, 255, 255, 0.08);
-    --ring-bg: rgba(255, 255, 255, 0.08);
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { transition: background-color 0.35s ease, color 0.35s ease; }
@@ -296,9 +282,9 @@ input[type="color"]:focus-visible {
 }
 .multi-color-del:hover { color: #ef4444; border-color: #ef4444; }
 
-/* Числовые инпуты в слайдерах */
+/* Числовые инпуты */
 .num-input {
-    width: 54px;
+    width: 58px;
     padding: 2px 6px;
     border-radius: 6px;
     border: 1px solid var(--border);
@@ -311,6 +297,8 @@ input[type="color"]:focus-visible {
     transition: border-color 0.15s ease;
     -moz-appearance: textfield;
     appearance: textfield;
+    text-transform: none;
+    letter-spacing: 0;
 }
 .num-input::-webkit-outer-spin-button,
 .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -373,7 +361,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .reset-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--accent); }
 
-/* Футер настроек с ссылкой */
+/* Ссылка на GitHub */
 .settings-footer-link {
     display: flex;
     align-items: center;
@@ -585,7 +573,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     transition: width 0.5s linear, background-color 0.35s ease, filter 0.3s ease, opacity 0.3s ease;
 }
 
-/* Сердца с половинками */
+/* Сердца */
 .status-hearts {
     display: flex;
     flex-direction: column;
@@ -654,11 +642,11 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     font-size: 0.85em;
 }
 
-/* Часы (слот-машина) */
+/* === Часы (слот-машина по цифрам) === */
 .status-clock {
     display: flex;
     justify-content: center;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     margin: 8px auto 0;
     font-family: 'JetBrains Mono', 'Manrope', monospace;
@@ -671,51 +659,70 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     user-select: none;
 }
 .status-clock.no-hours .clock-part-h { display: none; }
-.clock-part-h { display: flex; align-items: baseline; gap: 6px; }
+.clock-part-h { display: flex; align-items: center; gap: 6px; }
+
 .clock-segment {
+    display: inline-flex;
+    color: var(--event-color, var(--lesson-color));
+}
+
+/* Каждая цифра — отдельный контейнер с собственной областью обрезки */
+.clock-digit {
     position: relative;
     display: inline-block;
-    overflow: hidden;
-    min-width: 2.2ch;
-    text-align: center;
+    width: 1ch;
     height: 1.15em;
-    vertical-align: bottom;
-    color: var(--event-color, var(--lesson-color));
+    overflow: hidden;
+    text-align: center;
+    vertical-align: top;
+    line-height: 1.15em;
     font-size: 1em;
 }
-.clock-num {
-    display: inline-block;
+.clock-digit-cur {
+    display: block;
     width: 100%;
-    height: 1em;
-    line-height: 1em;
     text-align: center;
+    line-height: 1.15em;
+    will-change: transform;
 }
-.clock-num-out {
+.clock-digit-out {
     position: absolute;
-    top: 0; left: 0; right: 0;
-    animation: clock-roll-out 0.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+    top: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    line-height: 1.15em;
+    animation: clock-digit-out 0.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+    pointer-events: none;
 }
-.clock-num-in {
-    animation: clock-roll-in 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
+.clock-digit-cur.clock-digit-in {
+    animation: clock-digit-in 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
 }
-@keyframes clock-roll-out {
+@keyframes clock-digit-out {
     from { transform: translateY(0); opacity: 1; }
     to   { transform: translateY(-100%); opacity: 0; }
 }
-@keyframes clock-roll-in {
+@keyframes clock-digit-in {
     from { transform: translateY(100%); opacity: 0; }
     to   { transform: translateY(0); opacity: 1; }
 }
+
 .clock-sep {
     color: var(--text-muted);
     opacity: 0.6;
     font-size: 0.85em;
+    align-self: center;
 }
 .status-clock-label {
     margin-top: 14px;
     font-size: 0.78rem;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .clock-digit-out,
+    .clock-digit-cur.clock-digit-in { animation: none; }
 }
 
 /* Подпись предмета */
@@ -859,4 +866,4 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     .heart-icon { width: 22px; height: 22px; }
     .subject-icon { width: 16px; height: 16px; }
     .status-clock { font-size: 1.6rem; }
-        }
+    }
