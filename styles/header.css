@@ -1,0 +1,83 @@
+.menu-toggle {
+    position: fixed;
+    top: 20px; right: 20px;
+    z-index: 100;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-strong);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s ease, background-color 0.35s ease, border-color 0.35s ease;
+}
+.menu-toggle:hover { transform: scale(1.08); }
+.menu-toggle:active { transform: scale(0.95); }
+
+header { text-align: center; margin-bottom: 28px; }
+header h1 { margin-bottom: 18px; }
+
+#header-title {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+#header-title:hover { color: var(--accent); }
+
+nav ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+nav ul li a {
+    display: inline-block;
+    text-decoration: none;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 100px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: -0.01em;
+    position: relative;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+nav ul li a:hover { color: var(--accent); border-color: var(--accent); }
+nav ul li a.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+nav ul li a.today::after {
+    content: '';
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.75;
+}
+nav ul li a.active.today::after { opacity: 0.95; }
+
+.offline-badge {
+    max-width: 720px;
+    margin: -8px auto 16px;
+    padding: 8px 14px;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-align: center;
+    width: fit-content;
+}
+.offline-badge[hidden] { display: none; }
+.temp-badge { color: var(--break-color); border-color: var(--break-color); }
