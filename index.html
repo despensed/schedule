@@ -6,79 +6,102 @@
     <meta name="description" content="Расписание уроков">
     <meta name="author" content="Despenced">
     <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#6366f1">
     <title>Расписание</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="styles.css?v=10">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/background.css">
+    <link rel="stylesheet" href="styles/header.css">
+    <link rel="stylesheet" href="styles/status.css">
+    <link rel="stylesheet" href="styles/schedule.css">
+    <link rel="stylesheet" href="styles/settings.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
 
+    <!-- Применяем тему, свечение и цвета до отрисовки, чтобы не мигало.
+         Логика дублирует js/settings.js::loadSettings + js/constants.js. -->
     <script>
         (function () {
-            function pickTextColor(hex) {
-                const c = String(hex).replace('#', '');
-                if (c.length !== 6) return '#ffffff';
-                const r = parseInt(c.substr(0, 2), 16);
-                const g = parseInt(c.substr(2, 2), 16);
-                const b = parseInt(c.substr(4, 2), 16);
-                const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                return L > 160 ? '#0f172a' : '#ffffff';
-            }
+            var SETTINGS_KEY = 'app-settings';
+            var THEME_KEY = 'theme';
+            var THEME_EXPLICIT_KEY = 'theme-explicit';
+
+            function isHex(v) { return typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v); }
             function hexToRgb(hex) {
-                const c = String(hex).replace('#', '');
-                if (c.length !== 6) return { r: 99, g: 102, b: 241 };
+                var c = hex.replace('#', '');
+                if (c.length !== 6 || !/^[0-9a-f]{6}$/i.test(c)) return { r: 99, g: 102, b: 241 };
                 return {
                     r: parseInt(c.substr(0, 2), 16),
                     g: parseInt(c.substr(2, 2), 16),
                     b: parseInt(c.substr(4, 2), 16)
                 };
             }
-            function applySurfaceVars(hex) {
-                const rgb = hexToRgb(hex);
-                const root = document.documentElement.style;
-                root.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.75)`);
-                root.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
-                root.setProperty('--surface-solid', hex);
-                root.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`);
+            function pickTextColor(hex) {
+                var x = hexToRgb(hex);
+                return (0.2126 * x.r + 0.7152 * x.g + 0.0722 * x.b) > 160 ? '#0f172a' : '#ffffff';
             }
 
-            const savedSettings = localStorage.getItem('app-settings');
-            let parsed = {};
-            if (savedSettings) { try { parsed = JSON.parse(savedSettings); } catch (e) {} }
+            var parsed = {};
+            try { parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) {}
 
-            const explicit = localStorage.getItem('theme-explicit') === '1';
-            let theme = explicit ? localStorage.getItem('theme') : null;
-            if (!theme && parsed.theme) theme = parsed.theme;
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            theme = theme || (prefersDark ? 'dark' : 'light');
+            var explicit = localStorage.getItem(THEME_EXPLICIT_KEY) === '1';
+            var savedTheme = localStorage.getItem(THEME_KEY);
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var theme = (explicit && savedTheme) ? savedTheme : (parsed.theme || (prefersDark ? 'dark' : 'light'));
+            if (theme !== 'custom' && theme !== 'light' && theme !== 'dark') {
+                theme = prefersDark ? 'dark' : 'light';
+            }
 
-            if (theme === 'custom' && parsed.customThemeColor) {
-                const base = parsed.customBaseTheme === 'dark' ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', base);
-                applySurfaceVars(parsed.customThemeColor);
+            var root = document.documentElement;
+            var s = root.style;
+
+            if (theme === 'custom' && isHex(parsed.customThemeColor)) {
+                root.setAttribute('data-theme', parsed.customBaseTheme === 'dark' ? 'dark' : 'light');
+                var rgb = hexToRgb(parsed.customThemeColor);
+                s.setProperty('--surface', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.75)');
+                s.setProperty('--surface-strong', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.9)');
+                s.setProperty('--surface-solid', parsed.customThemeColor);
+                s.setProperty('--surface-2', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.55)');
             } else {
-                document.documentElement.setAttribute('data-theme', theme);
+                root.setAttribute('data-theme', theme === 'custom' ? 'light' : theme);
             }
 
-            if (parsed.accentColor) {
-                document.documentElement.style.setProperty('--accent-override', parsed.accentColor);
-                document.documentElement.style.setProperty('--accent-text-override', pickTextColor(parsed.accentColor));
+            if (isHex(parsed.accentColor)) {
+                s.setProperty('--accent-override', parsed.accentColor);
+                s.setProperty('--accent-text-override', pickTextColor(parsed.accentColor));
             }
-            if (parsed.lessonColor) document.documentElement.style.setProperty('--lesson-color-override', parsed.lessonColor);
-            if (parsed.breakColor) document.documentElement.style.setProperty('--break-color-override', parsed.breakColor);
-            if (parsed.heartOutlineColor) document.documentElement.style.setProperty('--heart-outline-override', parsed.heartOutlineColor);
-            if (parsed.glowIntensity) {
-                const blur = parsed.glowIntensity === 'soft' ? '8px'
-                           : parsed.glowIntensity === 'strong' ? '18px' : '0px';
-                document.documentElement.style.setProperty('--glow-blur-override', blur);
+            if (isHex(parsed.lessonColor)) s.setProperty('--lesson-color-override', parsed.lessonColor);
+            if (isHex(parsed.breakColor)) s.setProperty('--break-color-override', parsed.breakColor);
+            if (isHex(parsed.heartOutlineColor)) s.setProperty('--heart-outline-override', parsed.heartOutlineColor);
+
+            /* Миграция glow со старых строк на число 0..20 (px) */
+            var glowRaw = parsed.glowIntensity;
+            var glowNum = 0;
+            if (glowRaw === 'soft') glowNum = 8;
+            else if (glowRaw === 'strong') glowNum = 16;
+            else if (typeof glowRaw === 'number' && isFinite(glowRaw)) glowNum = glowRaw;
+            if (glowNum > 0) {
+                root.setAttribute('data-glow', 'on');
+                s.setProperty('--glow-blur', glowNum + 'px');
+            } else {
+                root.setAttribute('data-glow', 'off');
             }
+
+            /* Толщина обводки сердец, px. По умолчанию 1.5 */
+            var how = parsed.heartOutlineWidth;
+            if (typeof how !== 'number' || !isFinite(how) || how < 0) how = 1.5;
+            s.setProperty('--heart-outline-width', how + 'px');
+
             if (Array.isArray(parsed.orbsColors)) {
-                if (parsed.orbsColors[0]) document.documentElement.style.setProperty('--orb-1', parsed.orbsColors[0]);
-                if (parsed.orbsColors[1]) document.documentElement.style.setProperty('--orb-2', parsed.orbsColors[1]);
-                if (parsed.orbsColors[2]) document.documentElement.style.setProperty('--orb-3', parsed.orbsColors[2]);
+                for (var i = 0; i < 3; i++) {
+                    if (isHex(parsed.orbsColors[i])) s.setProperty('--orb-' + (i + 1), parsed.orbsColors[i]);
+                }
             }
         })();
     </script>
@@ -92,21 +115,30 @@
     <div class="bg-gradient" aria-hidden="true"></div>
     <canvas class="bg-particles" id="particles-canvas" aria-hidden="true"></canvas>
 
-    <button id="menu-toggle" class="menu-toggle" aria-label="Настройки">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <button id="menu-toggle" class="menu-toggle" type="button"
+            aria-label="Настройки"
+            aria-haspopup="dialog"
+            aria-controls="settings-panel"
+            aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
     </button>
 
-    <div id="settings-overlay" class="settings-overlay"></div>
+    <div id="settings-overlay" class="settings-overlay" hidden></div>
 
-    <aside id="settings-panel" class="settings-panel" aria-label="Настройки">
+    <aside id="settings-panel" class="settings-panel"
+           role="dialog" aria-modal="true" aria-labelledby="settings-title" inert>
         <div class="settings-header">
-            <h3>Настройки</h3>
-            <button id="settings-close" class="settings-close" aria-label="Закрыть">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <h3 id="settings-title">Настройки</h3>
+            <button id="settings-close" class="settings-close" type="button" aria-label="Закрыть">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
@@ -115,11 +147,11 @@
 
         <div class="settings-body">
             <div class="setting-group">
-                <span class="setting-label">Тема</span>
-                <div class="segmented segmented-wrap" id="theme-switch">
-                    <button data-theme-value="light" class="seg-btn">Светлая</button>
-                    <button data-theme-value="dark" class="seg-btn">Тёмная</button>
-                    <button data-theme-value="custom" class="seg-btn">Свой цвет</button>
+                <span class="setting-label" id="theme-label">Тема</span>
+                <div class="segmented segmented-wrap" id="theme-switch" role="group" aria-labelledby="theme-label">
+                    <button data-theme-value="light" class="seg-btn" type="button">Светлая</button>
+                    <button data-theme-value="dark" class="seg-btn" type="button">Тёмная</button>
+                    <button data-theme-value="custom" class="seg-btn" type="button">Свой цвет</button>
                 </div>
             </div>
 
@@ -137,31 +169,27 @@
             </div>
 
             <div class="setting-group">
-                <span class="setting-label">Уведомления о начале урока</span>
-                <div class="segmented" id="notify-switch">
-                    <button data-notify="off" class="seg-btn">Выкл</button>
-                    <button data-notify="on" class="seg-btn">Вкл</button>
+                <span class="setting-label" id="notify-label">Уведомления о начале урока</span>
+                <div class="segmented" id="notify-switch" role="group" aria-labelledby="notify-label">
+                    <button data-notify="off" class="seg-btn" type="button">Выкл</button>
+                    <button data-notify="on" class="seg-btn" type="button">Вкл</button>
                 </div>
                 <p class="setting-hint" id="notify-hint"></p>
             </div>
 
             <div class="setting-group">
-                <span class="setting-label">Стиль таймера</span>
-                <div class="segmented segmented-wrap" id="style-switch">
-                    <button data-style="ring" class="seg-btn">Кольцо</button>
-                    <button data-style="bar" class="seg-btn">Полоса</button>
-                    <button data-style="hearts" class="seg-btn">Сердца</button>
-                    <button data-style="clock" class="seg-btn">Часы</button>
+                <span class="setting-label" id="style-label">Стиль таймера</span>
+                <div class="segmented segmented-wrap" id="style-switch" role="group" aria-labelledby="style-label">
+                    <button data-style="ring" class="seg-btn" type="button">Кольцо</button>
+                    <button data-style="bar" class="seg-btn" type="button">Полоса</button>
+                    <button data-style="hearts" class="seg-btn" type="button">Сердца</button>
+                    <button data-style="clock" class="seg-btn" type="button">Часы</button>
                 </div>
             </div>
 
             <div class="setting-group">
-                <span class="setting-label">Свечение таймера</span>
-                <div class="segmented" id="glow-switch">
-                    <button data-glow="off" class="seg-btn">Выкл</button>
-                    <button data-glow="soft" class="seg-btn">Мягкое</button>
-                    <button data-glow="strong" class="seg-btn">Сильное</button>
-                </div>
+                <label class="setting-label" for="glow-slider">Свечение таймера: <span id="glow-value">0</span></label>
+                <input type="range" id="glow-slider" min="0" max="20" step="1" value="0">
             </div>
 
             <div class="setting-subgroup" id="heart-settings">
@@ -173,12 +201,15 @@
                         <button type="button" id="heart-outline-reset" class="mini-btn" title="Синхронизировать с цветом урока">Авто</button>
                     </div>
                 </div>
-
                 <div class="setting-group">
-                    <span class="setting-label">Анимация сердец</span>
-                    <div class="segmented" id="heart-anim-switch">
-                        <button data-heart-anim="none" class="seg-btn">Выкл</button>
-                        <button data-heart-anim="bounce" class="seg-btn">Подпрыгивание</button>
+                    <label class="setting-label" for="heart-outline-width">Толщина обводки: <span id="heart-outline-width-value">1.5</span></label>
+                    <input type="range" id="heart-outline-width" min="0" max="4" step="0.1" value="1.5">
+                </div>
+                <div class="setting-group">
+                    <span class="setting-label" id="heart-anim-label">Анимация сердец</span>
+                    <div class="segmented" id="heart-anim-switch" role="group" aria-labelledby="heart-anim-label">
+                        <button data-heart-anim="none" class="seg-btn" type="button">Выкл</button>
+                        <button data-heart-anim="bounce" class="seg-btn" type="button">Подпрыгивание</button>
                     </div>
                 </div>
             </div>
@@ -208,12 +239,12 @@
             </div>
 
             <div class="setting-group">
-                <span class="setting-label">Фон</span>
-                <div class="segmented segmented-wrap" id="bg-switch">
-                    <button data-bg="orbs" class="seg-btn">Орбы</button>
-                    <button data-bg="particles" class="seg-btn">Частицы</button>
-                    <button data-bg="gradient" class="seg-btn">Градиент</button>
-                    <button data-bg="none" class="seg-btn">Нет</button>
+                <span class="setting-label" id="bg-label">Фон</span>
+                <div class="segmented segmented-wrap" id="bg-switch" role="group" aria-labelledby="bg-label">
+                    <button data-bg="orbs" class="seg-btn" type="button">Орбы</button>
+                    <button data-bg="particles" class="seg-btn" type="button">Частицы</button>
+                    <button data-bg="gradient" class="seg-btn" type="button">Градиент</button>
+                    <button data-bg="none" class="seg-btn" type="button">Нет</button>
                 </div>
             </div>
 
@@ -240,12 +271,12 @@
                 </div>
 
                 <div class="setting-group">
-                    <span class="setting-label">Форма частиц</span>
-                    <div class="segmented segmented-wrap" id="particles-shape">
-                        <button data-shape="dot" class="seg-btn">Точка</button>
-                        <button data-shape="heart" class="seg-btn">Сердце</button>
-                        <button data-shape="triangle" class="seg-btn">Треугольник</button>
-                        <button data-shape="random" class="seg-btn">Случайно</button>
+                    <span class="setting-label" id="particles-shape-label">Форма частиц</span>
+                    <div class="segmented segmented-wrap" id="particles-shape" role="group" aria-labelledby="particles-shape-label">
+                        <button data-shape="dot" class="seg-btn" type="button">Точка</button>
+                        <button data-shape="heart" class="seg-btn" type="button">Сердце</button>
+                        <button data-shape="triangle" class="seg-btn" type="button">Треугольник</button>
+                        <button data-shape="random" class="seg-btn" type="button">Случайно</button>
                     </div>
                 </div>
 
@@ -264,7 +295,6 @@
                         <span class="color-value" id="gradient-color1-value">#a5b4fc</span>
                     </div>
                 </div>
-
                 <div class="setting-group">
                     <label class="setting-label" for="gradient-color2">Цвет 2</label>
                     <div class="color-row">
@@ -272,14 +302,13 @@
                         <span class="color-value" id="gradient-color2-value">#f0abfc</span>
                     </div>
                 </div>
-
                 <div class="setting-group">
                     <label class="setting-label" for="gradient-angle">Наклон: <span id="gradient-angle-value">135</span>°</label>
                     <input type="range" id="gradient-angle" min="0" max="360" value="135">
                 </div>
             </div>
 
-            <button id="reset-settings" class="reset-btn">Сбросить настройки</button>
+            <button id="reset-settings" class="reset-btn" type="button">Сбросить настройки</button>
 
             <a href="https://github.com/despensed/schedule" target="_blank" rel="noopener noreferrer" class="settings-footer-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -291,7 +320,9 @@
     </aside>
 
     <header>
-        <h1 id="header-title" tabindex="0" role="button" title="К сегодняшнему дню">Расписание</h1>
+        <h1>
+            <button type="button" id="header-title" title="К сегодняшнему дню">Расписание</button>
+        </h1>
         <nav aria-label="Дни недели">
             <ul>
                 <li><a href="#monday" data-day="monday">Пн</a></li>
@@ -303,8 +334,8 @@
         </nav>
     </header>
 
-    <div id="offline-badge" class="offline-badge" hidden>Офлайн · данные из кеша</div>
-    <div id="temp-badge" class="offline-badge temp-badge" hidden></div>
+    <div id="offline-badge" class="offline-badge" role="status" hidden>Офлайн · данные из кеша</div>
+    <div id="temp-badge" class="offline-badge temp-badge" role="status" hidden></div>
 
     <main>
         <section id="home">
@@ -313,6 +344,6 @@
         </section>
     </main>
 
-    <script src="script.js?v=10"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
