@@ -1,7 +1,7 @@
 @media (max-width: 600px) {
     body { padding: 16px 12px 32px; }
     .menu-toggle { top: 12px; right: 12px; width: 38px; height: 38px; }
-    .settings-panel { padding: 20px 20px 12px; width: 92vw; }
+    .settings-panel { width: 92vw; }
 
     header { margin-bottom: 22px; }
     header h1 { margin-bottom: 14px; }
@@ -34,6 +34,9 @@
     .lesson-num { grid-column: 1; grid-row: 1; font-size: 0.78rem; }
     .lesson-time { grid-column: 1; grid-row: 2; font-size: 0.75rem; }
     .lesson-subject { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 0.88rem; }
+
+    .dual-slider-desktop { display: none; }
+    .dual-slider-mobile { display: flex; flex-direction: column; gap: 12px; }
 }
 
 @media (max-width: 380px) {
