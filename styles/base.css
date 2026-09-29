@@ -4,6 +4,12 @@
     --surface-strong: rgba(255, 255, 255, 0.9);
     --surface-solid: #ffffff;
     --surface-2: rgba(250, 250, 255, 0.6);
+
+    /* Отдельный набор для панели настроек: при «Своём цвете» не меняется. */
+    --settings-surface-strong: rgba(255, 255, 255, 0.9);
+    --settings-surface-solid: #ffffff;
+    --settings-surface-2: rgba(250, 250, 255, 0.6);
+
     --text: #0f172a;
     --text-muted: #64748b;
     --border: rgba(15, 23, 42, 0.08);
@@ -26,6 +32,11 @@
     --surface-strong: rgba(22, 22, 32, 0.9);
     --surface-solid: #161620;
     --surface-2: rgba(28, 28, 40, 0.55);
+
+    --settings-surface-strong: rgba(22, 22, 32, 0.9);
+    --settings-surface-solid: #161620;
+    --settings-surface-2: rgba(28, 28, 40, 0.55);
+
     --text: #f1f5f9;
     --text-muted: #94a3b8;
     --border: rgba(255, 255, 255, 0.08);
