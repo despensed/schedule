@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { DAYS_EN, DAYS_RU, DAYS_SHORT } from './constants.js';
+import { DAYS_EN, DAYS_RU, DAYS_ORDER } from './constants.js';
 import { escapeHtml } from './utils.js';
 import { getSubjectIcon } from './icons.js';
 import { getNextEvent } from './events.js';
@@ -18,6 +18,28 @@ function updateTitle(timeStr) {
         document.title = t;
         state.lastTitleStr = t;
     }
+}
+
+/* «Завтра» / «Послезавтра» / «Через N дней» для урока на другом дне.
+   todayIdx: 0=Пн..6=Вс, targetIdx: 0=Пн..4=Пт. */
+function dayDistanceLabel(day, now) {
+    const todayIdx = (now.getDay() + 6) % 7;
+    const targetIdx = DAYS_ORDER.indexOf(day);
+    if (targetIdx < 0) return 'Далее';
+
+    let diff = targetIdx - todayIdx;
+    if (diff <= 0) diff += 7;
+
+    if (diff === 1) return 'Завтра';
+    if (diff === 2) return 'Послезавтра';
+
+    const mod10 = diff % 10;
+    const mod100 = diff % 100;
+    let word = 'дней';
+    if (mod10 === 1 && mod100 !== 11) word = 'день';
+    else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) word = 'дня';
+
+    return `Через ${diff} ${word}`;
 }
 
 export function renderStatus() {
@@ -48,16 +70,21 @@ export function renderStatus() {
 
     const timeStr = formatTime(event.remaining);
     const iconHtml = event.type === 'lesson' ? getSubjectIcon(event.subject) : '';
+
     let title;
     if (event.mode === 'active') title = 'Сейчас';
-    else if (isOtherDay) title = `Далее · ${DAYS_SHORT[event.day] || ''}`;
+    else if (isOtherDay) title = dayDistanceLabel(event.day, now);
     else title = 'Далее';
 
     const progress = event.mode === 'upcoming'
         ? 1
         : (event.total > 0 ? event.elapsed / event.total : 0);
     const bounce = state.settings.heartAnimation === 'bounce';
-    const detail = formatProgressDetail(event);
+
+    /* Для «до начала» detail не нужен: фраза уже есть в label таймера,
+       а дубль у предмета только шумит. */
+    const detail = event.mode === 'upcoming' ? '' : formatProgressDetail(event);
+
     const safeSubject = escapeHtml(event.subject);
     const safeLabel = escapeHtml(event.label);
     const key = `${state.settings.timerStyle}|${event.type}|${event.mode}|${event.subject}|${event.day}|${event.index}|${title}|${bounce}|${detail}`;
@@ -72,7 +99,6 @@ export function renderStatus() {
                 <div class="status-bar">
                     <div class="status-bar-top">
                         <span class="status-bar-time">${timeStr}</span>
-                        <span class="status-bar-label">${safeLabel}${detail ? ` · <span class="status-detail-inline">${escapeHtml(detail)}</span>` : ''}</span>
                     </div>
                     <div class="status-bar-track">
                         <div class="status-bar-fill" style="width: ${progress * 100}%; background: ${fillColor};"></div>
@@ -157,4 +183,4 @@ export function renderStatus() {
     }
 
     updateTitle(timeStr);
-}
+                }
