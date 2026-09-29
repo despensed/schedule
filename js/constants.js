@@ -28,12 +28,14 @@ export const STORAGE_KEYS = {
 export const DEFAULT_SETTINGS = {
     theme: 'light',
     customThemeColor: '#1e1b4b',
+    customThemeOpacity: 25,
     customBaseTheme: 'light',
-    timerStyle: 'ring',
+    timerStyle: 'bar',
     accentColor: '#6366f1',
     lessonColor: '#6366f1',
     breakColor: '#f59e0b',
     backgroundMode: 'orbs',
+    solidColor: '#6366f1',
     orbsColors: ['#a5b4fc', '#f0abfc', '#93c5fd'],
     particlesCount: 5,
     particlesShape: 'dot',
@@ -42,18 +44,21 @@ export const DEFAULT_SETTINGS = {
     gradientColor1: '#a5b4fc',
     gradientColor2: '#f0abfc',
     gradientAngle: 135,
+    gradientRotate: false,
+    gradientAngleFrom: 30,
+    gradientAngleTo: 210,
+    gradientSpeed: 50,
     glowIntensity: 0,
     heartOutlineColor: '#6366f1',
     heartOutlineCustom: false,
     heartOutlineWidth: 1.5,
-    heartAnimation: 'none',
-    notificationsEnabled: false
+    heartAnimation: 'none'
 };
 
 export const VALID = {
     theme: ['light', 'dark', 'custom'],
-    timerStyle: ['ring', 'bar', 'hearts', 'clock'],
-    backgroundMode: ['orbs', 'particles', 'gradient', 'none'],
+    timerStyle: ['bar', 'ring', 'clock', 'hearts'],
+    backgroundMode: ['orbs', '1color', 'gradient', 'particles'],
     particlesShape: ['dot', 'heart', 'triangle', 'random'],
     heartAnimation: ['none', 'bounce'],
     customBaseTheme: ['light', 'dark']
@@ -94,6 +99,7 @@ export const SUBJECT_ICON_MAP = {
     'геометрия': 'triangle',
     'вероятность и статистика': 'chart',
     'иностранный язык': 'languages',
+    'английский язык': 'languages',
     'физика': 'atom',
     'информатика': 'code',
     'химия': 'flask',
