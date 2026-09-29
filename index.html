@@ -62,10 +62,13 @@
             if (theme === 'custom' && isHex(parsed.customThemeColor)) {
                 root.setAttribute('data-theme', parsed.customBaseTheme === 'dark' ? 'dark' : 'light');
                 var rgb = hexToRgb(parsed.customThemeColor);
-                s.setProperty('--surface', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.75)');
-                s.setProperty('--surface-strong', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.9)');
+                var op = (typeof parsed.customThemeOpacity === 'number' && isFinite(parsed.customThemeOpacity))
+                    ? parsed.customThemeOpacity : 25;
+                var a = 1 - Math.min(100, Math.max(0, op)) / 100;
+                s.setProperty('--surface', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + a.toFixed(3) + ')');
+                s.setProperty('--surface-strong', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + Math.min(1, a + 0.15).toFixed(3) + ')');
                 s.setProperty('--surface-solid', parsed.customThemeColor);
-                s.setProperty('--surface-2', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.55)');
+                s.setProperty('--surface-2', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + Math.max(0, a - 0.2).toFixed(3) + ')');
             } else {
                 root.setAttribute('data-theme', theme === 'custom' ? 'light' : theme);
             }
@@ -78,7 +81,6 @@
             if (isHex(parsed.breakColor)) s.setProperty('--break-color-override', parsed.breakColor);
             if (isHex(parsed.heartOutlineColor)) s.setProperty('--heart-outline-override', parsed.heartOutlineColor);
 
-            /* Миграция glow со старых строк на число 0..20 (px) */
             var glowRaw = parsed.glowIntensity;
             var glowNum = 0;
             if (glowRaw === 'soft') glowNum = 8;
@@ -91,7 +93,6 @@
                 root.setAttribute('data-glow', 'off');
             }
 
-            /* Толщина обводки сердец, px. По умолчанию 1.5 */
             var how = parsed.heartOutlineWidth;
             if (typeof how !== 'number' || !isFinite(how) || how < 0) how = 1.5;
             s.setProperty('--heart-outline-width', how + 'px');
@@ -105,6 +106,7 @@
     </script>
 </head>
 <body>
+    <div class="bg-solid" aria-hidden="true"></div>
     <div class="bg-orbs" aria-hidden="true">
         <span class="orb orb-1"></span>
         <span class="orb orb-2"></span>
@@ -144,178 +146,253 @@
         </div>
 
         <div class="settings-body">
-            <div class="setting-group">
-                <span class="setting-label" id="theme-label">Тема</span>
-                <div class="segmented segmented-wrap" id="theme-switch" role="group" aria-labelledby="theme-label">
-                    <button data-theme-value="light" class="seg-btn" type="button">Светлая</button>
-                    <button data-theme-value="dark" class="seg-btn" type="button">Тёмная</button>
-                    <button data-theme-value="custom" class="seg-btn" type="button">Свой цвет</button>
-                </div>
-            </div>
+            <section class="settings-section" data-open="true">
+                <button class="settings-section__header" type="button" aria-expanded="true">
+                    <span>Настройки темы</span>
+                    <span class="settings-section__chevron" aria-hidden="true">›</span>
+                </button>
+                <div class="settings-section__body">
+                    <div class="settings-section__inner">
+                        <div class="setting-group">
+                            <div class="segmented segmented-wrap" id="theme-switch" role="group" aria-label="Тема">
+                                <button data-theme-value="dark" class="seg-btn" type="button">Тёмная</button>
+                                <button data-theme-value="light" class="seg-btn" type="button">Светлая</button>
+                                <button data-theme-value="custom" class="seg-btn" type="button">Свой цвет</button>
+                            </div>
+                        </div>
 
-            <div class="setting-subgroup" id="custom-theme-settings">
-                <div class="setting-group">
-                    <label class="setting-label" for="custom-theme-color">Цвет боксов</label>
-                    <div class="color-row">
-                        <input type="color" id="custom-theme-color" value="#1e1b4b">
-                        <span class="color-value" id="custom-theme-color-value">#1e1b4b</span>
+                        <div class="setting-subgroup" id="custom-theme-settings">
+                            <div class="setting-group">
+                                <label class="setting-label" for="custom-theme-color">Цвет боксов</label>
+                                <div class="color-row">
+                                    <input type="color" id="custom-theme-color" value="#1e1b4b">
+                                    <span class="color-value" id="custom-theme-color-value">#1e1b4b</span>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label" for="custom-theme-opacity">Прозрачность: <span id="custom-theme-opacity-value">25</span>%</label>
+                                <input type="range" id="custom-theme-opacity" min="0" max="100" step="1" value="25">
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p class="setting-hint">
-                    Меняется только цвет полупрозрачных боксов. Фон страницы и текст остаются как у светлой/тёмной темы.
-                </p>
-            </div>
+            </section>
 
-            <div class="setting-group">
-                <span class="setting-label" id="notify-label">Уведомления о начале урока</span>
-                <div class="segmented" id="notify-switch" role="group" aria-labelledby="notify-label">
-                    <button data-notify="off" class="seg-btn" type="button">Выкл</button>
-                    <button data-notify="on" class="seg-btn" type="button">Вкл</button>
-                </div>
-                <p class="setting-hint" id="notify-hint"></p>
-            </div>
+            <section class="settings-section" data-open="true">
+                <button class="settings-section__header" type="button" aria-expanded="true">
+                    <span>Настройки таймера</span>
+                    <span class="settings-section__chevron" aria-hidden="true">›</span>
+                </button>
+                <div class="settings-section__body">
+                    <div class="settings-section__inner">
+                        <div class="setting-group">
+                            <div class="segmented segmented-wrap" id="style-switch" role="group" aria-label="Стиль таймера">
+                                <button data-style="bar" class="seg-btn" type="button">Полоса</button>
+                                <button data-style="ring" class="seg-btn" type="button">Кольцо</button>
+                                <button data-style="clock" class="seg-btn" type="button">Часы</button>
+                                <button data-style="hearts" class="seg-btn" type="button">Сердечки</button>
+                            </div>
+                        </div>
 
-            <div class="setting-group">
-                <span class="setting-label" id="style-label">Стиль таймера</span>
-                <div class="segmented segmented-wrap" id="style-switch" role="group" aria-labelledby="style-label">
-                    <button data-style="ring" class="seg-btn" type="button">Кольцо</button>
-                    <button data-style="bar" class="seg-btn" type="button">Полоса</button>
-                    <button data-style="hearts" class="seg-btn" type="button">Сердца</button>
-                    <button data-style="clock" class="seg-btn" type="button">Часы</button>
-                </div>
-            </div>
+                        <div class="setting-group">
+                            <label class="setting-label" for="accent-color">Основной цвет</label>
+                            <div class="color-row">
+                                <input type="color" id="accent-color" value="#6366f1">
+                                <span class="color-value" id="accent-value">#6366f1</span>
+                            </div>
+                        </div>
 
-            <div class="setting-group">
-                <label class="setting-label" for="glow-slider">Свечение таймера: <span id="glow-value">0</span></label>
-                <input type="range" id="glow-slider" min="0" max="20" step="1" value="0">
-            </div>
+                        <div class="setting-group">
+                            <label class="setting-label" for="lesson-color">Цвет урока</label>
+                            <div class="color-row">
+                                <input type="color" id="lesson-color" value="#6366f1">
+                                <span class="color-value" id="lesson-value">#6366f1</span>
+                            </div>
+                        </div>
 
-            <div class="setting-subgroup" id="heart-settings">
-                <div class="setting-group">
-                    <label class="setting-label" for="heart-outline-color">Обводка сердец</label>
-                    <div class="color-row">
-                        <input type="color" id="heart-outline-color" value="#6366f1">
-                        <span class="color-value" id="heart-outline-color-value">#6366f1</span>
-                        <button type="button" id="heart-outline-reset" class="mini-btn" title="Синхронизировать с цветом урока">Авто</button>
+                        <div class="setting-group">
+                            <label class="setting-label" for="break-color">Цвет перемены</label>
+                            <div class="color-row">
+                                <input type="color" id="break-color" value="#f59e0b">
+                                <span class="color-value" id="break-value">#f59e0b</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label" for="glow-slider">Свечение: <span id="glow-value">0</span></label>
+                            <input type="range" id="glow-slider" min="0" max="20" step="1" value="0">
+                        </div>
+
+                        <div class="setting-subgroup" id="heart-settings">
+                            <div class="setting-group">
+                                <label class="setting-label" for="heart-outline-color">Обводка сердец</label>
+                                <div class="color-row">
+                                    <input type="color" id="heart-outline-color" value="#6366f1">
+                                    <span class="color-value" id="heart-outline-color-value">#6366f1</span>
+                                    <button type="button" id="heart-outline-reset" class="mini-btn" title="Синхронизировать с цветом урока">Авто</button>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label" for="heart-outline-width">Толщина обводки: <span id="heart-outline-width-value">1.5</span></label>
+                                <input type="range" id="heart-outline-width" min="0" max="4" step="0.1" value="1.5">
+                            </div>
+                            <div class="setting-group">
+                                <span class="setting-label">Анимация сердец</span>
+                                <div class="segmented" id="heart-anim-switch" role="group" aria-label="Анимация сердец">
+                                    <button data-heart-anim="none" class="seg-btn" type="button">Выкл</button>
+                                    <button data-heart-anim="bounce" class="seg-btn" type="button">Подпрыгивание</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="setting-group">
-                    <label class="setting-label" for="heart-outline-width">Толщина обводки: <span id="heart-outline-width-value">1.5</span></label>
-                    <input type="range" id="heart-outline-width" min="0" max="4" step="0.1" value="1.5">
-                </div>
-                <div class="setting-group">
-                    <span class="setting-label" id="heart-anim-label">Анимация сердец</span>
-                    <div class="segmented" id="heart-anim-switch" role="group" aria-labelledby="heart-anim-label">
-                        <button data-heart-anim="none" class="seg-btn" type="button">Выкл</button>
-                        <button data-heart-anim="bounce" class="seg-btn" type="button">Подпрыгивание</button>
+            </section>
+
+            <section class="settings-section" data-open="true">
+                <button class="settings-section__header" type="button" aria-expanded="true">
+                    <span>Настройки фона</span>
+                    <span class="settings-section__chevron" aria-hidden="true">›</span>
+                </button>
+                <div class="settings-section__body">
+                    <div class="settings-section__inner">
+                        <div class="setting-group">
+                            <div class="segmented segmented-wrap" id="bg-switch" role="group" aria-label="Фон">
+                                <button data-bg="orbs" class="seg-btn" type="button">Орбы</button>
+                                <button data-bg="1color" class="seg-btn" type="button">Сплошной</button>
+                                <button data-bg="gradient" class="seg-btn" type="button">Градиент</button>
+                                <button data-bg="particles" class="seg-btn" type="button">Частицы</button>
+                            </div>
+                        </div>
+
+                        <div class="setting-subgroup" id="orbs-settings">
+                            <div class="setting-group">
+                                <span class="setting-label">Цвета орбов</span>
+                                <div class="multi-color-list" id="orbs-colors"></div>
+                            </div>
+                        </div>
+
+                        <div class="setting-subgroup" id="solid-settings">
+                            <div class="setting-group">
+                                <label class="setting-label" for="solid-color">Цвет фона</label>
+                                <div class="color-row">
+                                    <input type="color" id="solid-color" value="#6366f1">
+                                    <span class="color-value" id="solid-color-value">#6366f1</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-subgroup" id="gradient-settings">
+                            <div class="setting-group">
+                                <label class="setting-label" for="gradient-color1">Цвет 1</label>
+                                <div class="color-row">
+                                    <input type="color" id="gradient-color1" value="#a5b4fc">
+                                    <span class="color-value" id="gradient-color1-value">#a5b4fc</span>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label" for="gradient-color2">Цвет 2</label>
+                                <div class="color-row">
+                                    <input type="color" id="gradient-color2" value="#f0abfc">
+                                    <span class="color-value" id="gradient-color2-value">#f0abfc</span>
+                                </div>
+                            </div>
+
+                            <div class="setting-group">
+                                <label class="setting-switch" for="gradient-rotate">
+                                    <span>Динамическое вращение</span>
+                                    <input type="checkbox" id="gradient-rotate">
+                                </label>
+                            </div>
+
+                            <div class="setting-group" id="gradient-static-angle">
+                                <label class="setting-label" for="gradient-angle">Наклон: <span id="gradient-angle-value">135</span>°</label>
+                                <input type="range" id="gradient-angle" min="0" max="360" step="1" value="135">
+                            </div>
+
+                            <div class="setting-group" id="gradient-rotate-settings">
+                                <div class="dual-slider-desktop">
+                                    <div class="dual-slider-labels">
+                                        <span id="gradient-angle-from-value">30</span>
+                                        <span id="gradient-angle-to-value">210</span>
+                                    </div>
+                                    <div class="dual-slider">
+                                        <input type="range" id="gradient-angle-from" min="0" max="360" step="1" value="30" aria-label="Начальный угол">
+                                        <input type="range" id="gradient-angle-to" min="0" max="360" step="1" value="210" aria-label="Конечный угол">
+                                    </div>
+                                </div>
+                                <div class="dual-slider-mobile">
+                                    <div class="setting-group">
+                                        <label class="setting-label" for="gradient-angle-from-mobile">От: <span id="gradient-angle-from-mobile-value">30</span>°</label>
+                                        <input type="range" id="gradient-angle-from-mobile" min="0" max="360" step="1" value="30">
+                                    </div>
+                                    <div class="setting-group">
+                                        <label class="setting-label" for="gradient-angle-to-mobile">До: <span id="gradient-angle-to-mobile-value">210</span>°</label>
+                                        <input type="range" id="gradient-angle-to-mobile" min="0" max="360" step="1" value="210">
+                                    </div>
+                                </div>
+                                <div class="setting-group">
+                                    <label class="setting-label" for="gradient-speed">Скорость: <span id="gradient-speed-value">50</span>%</label>
+                                    <input type="range" id="gradient-speed" min="1" max="100" step="1" value="50">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-subgroup" id="particles-settings">
+                            <div class="setting-group">
+                                <label class="setting-label" for="particles-count">Количество частиц:
+                                    <input type="number" id="particles-count-value" class="num-input" min="1" max="100" value="5">
+                                </label>
+                                <input type="range" id="particles-count" min="1" max="10" value="5">
+                            </div>
+
+                            <div class="setting-group">
+                                <label class="setting-label" for="particles-blur">Размытие:
+                                    <input type="number" id="particles-blur-value" class="num-input" min="0" max="100" value="0">
+                                </label>
+                                <input type="range" id="particles-blur" min="0" max="10" value="0">
+                            </div>
+
+                            <div class="setting-group">
+                                <span class="setting-label">Форма частиц</span>
+                                <div class="segmented segmented-wrap" id="particles-shape" role="group" aria-label="Форма частиц">
+                                    <button data-shape="dot" class="seg-btn" type="button">Точка</button>
+                                    <button data-shape="heart" class="seg-btn" type="button">Сердце</button>
+                                    <button data-shape="triangle" class="seg-btn" type="button">Треугольник</button>
+                                    <button data-shape="random" class="seg-btn" type="button">Случайно</button>
+                                </div>
+                            </div>
+
+                            <div class="setting-group">
+                                <span class="setting-label">Цвета частиц</span>
+                                <div class="multi-color-list" id="particles-colors"></div>
+                                <button type="button" id="particles-color-add" class="mini-btn">+ Добавить цвет</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
+        </div>
 
-            <div class="setting-group">
-                <label class="setting-label" for="accent-color">Основной цвет</label>
-                <div class="color-row">
-                    <input type="color" id="accent-color" value="#6366f1">
-                    <span class="color-value" id="accent-value">#6366f1</span>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label" for="lesson-color">Цвет урока</label>
-                <div class="color-row">
-                    <input type="color" id="lesson-color" value="#6366f1">
-                    <span class="color-value" id="lesson-value">#6366f1</span>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label" for="break-color">Цвет перемены</label>
-                <div class="color-row">
-                    <input type="color" id="break-color" value="#f59e0b">
-                    <span class="color-value" id="break-value">#f59e0b</span>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <span class="setting-label" id="bg-label">Фон</span>
-                <div class="segmented segmented-wrap" id="bg-switch" role="group" aria-labelledby="bg-label">
-                    <button data-bg="orbs" class="seg-btn" type="button">Орбы</button>
-                    <button data-bg="particles" class="seg-btn" type="button">Частицы</button>
-                    <button data-bg="gradient" class="seg-btn" type="button">Градиент</button>
-                    <button data-bg="none" class="seg-btn" type="button">Нет</button>
-                </div>
-            </div>
-
-            <div class="setting-subgroup" id="orbs-settings">
-                <div class="setting-group">
-                    <span class="setting-label">Цвета орбов</span>
-                    <div class="multi-color-list" id="orbs-colors"></div>
-                </div>
-            </div>
-
-            <div class="setting-subgroup" id="particles-settings">
-                <div class="setting-group">
-                    <label class="setting-label" for="particles-count">Количество частиц:
-                        <input type="number" id="particles-count-value" class="num-input" min="1" max="100" value="5">
-                    </label>
-                    <input type="range" id="particles-count" min="1" max="10" value="5">
-                </div>
-
-                <div class="setting-group">
-                    <label class="setting-label" for="particles-blur">Размытие:
-                        <input type="number" id="particles-blur-value" class="num-input" min="0" max="100" value="0">
-                    </label>
-                    <input type="range" id="particles-blur" min="0" max="10" value="0">
-                </div>
-
-                <div class="setting-group">
-                    <span class="setting-label" id="particles-shape-label">Форма частиц</span>
-                    <div class="segmented segmented-wrap" id="particles-shape" role="group" aria-labelledby="particles-shape-label">
-                        <button data-shape="dot" class="seg-btn" type="button">Точка</button>
-                        <button data-shape="heart" class="seg-btn" type="button">Сердце</button>
-                        <button data-shape="triangle" class="seg-btn" type="button">Треугольник</button>
-                        <button data-shape="random" class="seg-btn" type="button">Случайно</button>
-                    </div>
-                </div>
-
-                <div class="setting-group">
-                    <span class="setting-label">Цвета частиц</span>
-                    <div class="multi-color-list" id="particles-colors"></div>
-                    <button type="button" id="particles-color-add" class="mini-btn">+ Добавить цвет</button>
-                </div>
-            </div>
-
-            <div class="setting-subgroup" id="gradient-settings">
-                <div class="setting-group">
-                    <label class="setting-label" for="gradient-color1">Цвет 1</label>
-                    <div class="color-row">
-                        <input type="color" id="gradient-color1" value="#a5b4fc">
-                        <span class="color-value" id="gradient-color1-value">#a5b4fc</span>
-                    </div>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label" for="gradient-color2">Цвет 2</label>
-                    <div class="color-row">
-                        <input type="color" id="gradient-color2" value="#f0abfc">
-                        <span class="color-value" id="gradient-color2-value">#f0abfc</span>
-                    </div>
-                </div>
-                <div class="setting-group">
-                    <label class="setting-label" for="gradient-angle">Наклон: <span id="gradient-angle-value">135</span>°</label>
-                    <input type="range" id="gradient-angle" min="0" max="360" value="135">
-                </div>
-            </div>
-
+        <div class="settings-footer">
             <button id="reset-settings" class="reset-btn" type="button">Сбросить настройки</button>
-
-            <a href="https://github.com/despensed/schedule" target="_blank" rel="noopener noreferrer" class="settings-footer-link">
+            <a href="https://github.com/despensed/schedule" target="_blank" rel="noopener noreferrer" class="github-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.09.68-.22.68-.49 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.7.12 2.5.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.33 4.8-4.56 5.05.36.32.68.95.68 1.91 0 1.38-.01 2.5-.01 2.84 0 .27.18.59.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/>
                 </svg>
-                <span>Открыть репозиторий на GitHub</span>
+                <span>GitHub</span>
             </a>
         </div>
     </aside>
+
+    <div id="confirm-overlay" class="confirm-overlay">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+            <p id="confirm-title">Сбросить все настройки?</p>
+            <div class="confirm-actions">
+                <button id="confirm-cancel" class="mini-btn" type="button">Отмена</button>
+                <button id="confirm-ok" class="mini-btn mini-btn--danger" type="button">Сбросить</button>
+            </div>
+        </div>
+    </div>
 
     <header>
         <h1>
@@ -344,4 +421,4 @@
 
     <script type="module" src="js/main.js"></script>
 </body>
-</html>
+            </html>
