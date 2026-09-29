@@ -15,6 +15,10 @@ const particlesState = {
 let currentBgMode = null;
 let lastSpriteSig = '';
 
+let gradientRaf = null;
+let gradientLastTs = 0;
+let gradientPhase = 0;
+
 function spriteSignature() {
     const s = state.settings;
     return JSON.stringify({
@@ -118,8 +122,6 @@ function createParticle() {
     };
 }
 
-/* Обновляет существующие частицы под текущие настройки без «телепорта»:
-   меняется только форма / размытие / цвет спрайта и количество в списке. */
 function syncParticleSprites() {
     const target = clamp(state.settings.particlesCount | 0, 1, 100);
     const list = particlesState.list;
@@ -198,17 +200,77 @@ export function particlesInit() {
     });
 }
 
+/* ---------- градиент ---------- */
+
+function gradientApplyAngle(angle) {
+    const grad = document.querySelector('.bg-gradient');
+    if (!grad) return;
+    const s = state.settings;
+    grad.style.background = `linear-gradient(${angle}deg, ${s.gradientColor1}, ${s.gradientColor2})`;
+}
+
+/* Скорость: 50% → полный цикл 30 с. Полный цикл = from → to → from.
+   Так что halfCycle (from → to) = 15 с при 50%. */
+function gradientLoop(ts) {
+    if (!gradientLastTs) gradientLastTs = ts;
+    const dt = Math.min(0.1, (ts - gradientLastTs) / 1000);
+    gradientLastTs = ts;
+
+    const s = state.settings;
+    const from = Math.min(s.gradientAngleFrom, s.gradientAngleTo);
+    const to = Math.max(s.gradientAngleFrom, s.gradientAngleTo);
+    const range = Math.max(1, to - from);
+    const speed = clamp(s.gradientSpeed || 50, 1, 100);
+    const halfCycleSec = 15 * (50 / speed);
+    const degPerSec = range / halfCycleSec;
+
+    gradientPhase += (degPerSec * dt) / range;
+
+    const p = gradientPhase % 1;
+    const angle = p < 0.5
+        ? from + (p * 2) * range
+        : to - ((p - 0.5) * 2) * range;
+
+    gradientApplyAngle(angle);
+    gradientRaf = requestAnimationFrame(gradientLoop);
+}
+
+function startGradientAnimation() {
+    if (gradientRaf != null) return;
+    gradientLastTs = 0;
+    gradientPhase = 0;
+    gradientRaf = requestAnimationFrame(gradientLoop);
+}
+
+function stopGradientAnimation() {
+    if (gradientRaf != null) {
+        cancelAnimationFrame(gradientRaf);
+        gradientRaf = null;
+    }
+}
+
+/* ---------- общий рендер ---------- */
+
 export function applyBackground() {
     const bgOrbs = document.querySelector('.bg-orbs');
     const bgGrad = document.querySelector('.bg-gradient');
     const bgPart = document.querySelector('.bg-particles');
+    const bgSolid = document.querySelector('.bg-solid');
 
     const mode = state.settings.backgroundMode;
 
-    /* Тот же режим — обновляем «на месте», не пересоздаём частицы. */
+    if (mode !== 'gradient') stopGradientAnimation();
+
     if (mode === currentBgMode) {
-        if (mode === 'gradient' && bgGrad) {
-            bgGrad.style.background = `linear-gradient(${state.settings.gradientAngle}deg, ${state.settings.gradientColor1}, ${state.settings.gradientColor2})`;
+        if (mode === 'gradient') {
+            if (state.settings.gradientRotate) {
+                startGradientAnimation();
+            } else {
+                stopGradientAnimation();
+                gradientApplyAngle(state.settings.gradientAngle);
+            }
+        } else if (mode === '1color' && bgSolid) {
+            bgSolid.style.background = state.settings.solidColor;
         } else if (mode === 'particles') {
             const sig = spriteSignature();
             if (sig !== lastSpriteSig) {
@@ -219,18 +281,27 @@ export function applyBackground() {
         return;
     }
 
-    /* Смена режима — прячем всё, останавливаем, показываем нужное. */
     if (bgOrbs) bgOrbs.style.display = 'none';
     if (bgGrad) bgGrad.style.display = 'none';
     if (bgPart) bgPart.style.display = 'none';
+    if (bgSolid) bgSolid.style.display = 'none';
     particlesStop();
 
     if (mode === 'orbs') {
         if (bgOrbs) bgOrbs.style.display = 'block';
+    } else if (mode === '1color') {
+        if (bgSolid) {
+            bgSolid.style.display = 'block';
+            bgSolid.style.background = state.settings.solidColor;
+        }
     } else if (mode === 'gradient') {
         if (bgGrad) {
             bgGrad.style.display = 'block';
-            bgGrad.style.background = `linear-gradient(${state.settings.gradientAngle}deg, ${state.settings.gradientColor1}, ${state.settings.gradientColor2})`;
+            if (state.settings.gradientRotate) {
+                startGradientAnimation();
+            } else {
+                gradientApplyAngle(state.settings.gradientAngle);
+            }
         }
     } else if (mode === 'particles') {
         if (bgPart) {
@@ -243,17 +314,19 @@ export function applyBackground() {
     currentBgMode = mode;
 }
 
-export function applyCustomSurfaceVars(hex) {
+export function applyCustomSurfaceVars(hex, opacityPct) {
     const rgb = hexToRgb(hex);
+    const op = clamp(typeof opacityPct === 'number' ? opacityPct : 25, 0, 100);
+    const a = 1 - op / 100;
     const s = document.documentElement.style;
-    s.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.75)`);
-    s.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
+    s.setProperty('--surface', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a.toFixed(3)})`);
+    s.setProperty('--surface-strong', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.min(1, a + 0.15).toFixed(3)})`);
     s.setProperty('--surface-solid', hex);
-    s.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`);
+    s.setProperty('--surface-2', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.max(0, a - 0.2).toFixed(3)})`);
 }
 
 export function clearCustomSurfaceVars() {
     const s = document.documentElement.style;
     ['--surface', '--surface-strong', '--surface-solid', '--surface-2']
         .forEach(v => s.removeProperty(v));
-}
+            }
