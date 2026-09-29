@@ -55,15 +55,26 @@ export function getSchoolDay(n) {
     return DAYS_RU[n] ? n : 'monday';
 }
 
+const FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function isFocusableVisible(el) {
+    if (el.offsetParent === null) return false;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+    return true;
+}
+
 export function trapFocus(container) {
-    const sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusables = Array.from(container.querySelectorAll(sel)).filter(n => n.offsetParent !== null);
-    if (!focusables.length) return () => {};
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
+    function collect() {
+        return Array.from(container.querySelectorAll(FOCUSABLE_SEL)).filter(isFocusableVisible);
+    }
 
     function handler(e) {
         if (e.key !== 'Tab') return;
+        const focusables = collect();
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
         if (e.shiftKey && document.activeElement === first) {
             e.preventDefault();
             last.focus();
@@ -72,6 +83,7 @@ export function trapFocus(container) {
             first.focus();
         }
     }
+
     container.addEventListener('keydown', handler);
     return () => container.removeEventListener('keydown', handler);
 }
