@@ -4,7 +4,7 @@ import {
     $, isHexColor, sanitizeHex, pickValid, pickTextColor, clamp, trapFocus
 } from './utils.js';
 import {
-    applyBackground, applyCustomSurfaceVars, clearCustomSurfaceVars
+    applyBackground, applyCustomSurfaceVars, clearCustomSurfaceVars, particlesStart
 } from './background.js';
 import { renderStatus } from './status.js';
 import { renderSchedule } from './schedule-view.js';
@@ -13,6 +13,12 @@ const GLOW_MIN = 0;
 const GLOW_MAX = 20;
 const HEART_OUTLINE_MIN = 0;
 const HEART_OUTLINE_MAX = 4;
+const THEME_OPACITY_MIN = 0;
+const THEME_OPACITY_MAX = 100;
+const GRAD_ANGLE_MIN = 0;
+const GRAD_ANGLE_MAX = 360;
+const GRAD_SPEED_MIN = 1;
+const GRAD_SPEED_MAX = 100;
 
 function setActiveSegment(containerId, attr, value) {
     const container = $(containerId);
@@ -52,29 +58,11 @@ function renderMultiColorList(containerId, colors, removable) {
     }).join('');
 }
 
-function updateNotifyHint() {
-    const hint = $('notify-hint');
-    if (!hint) return;
-    if (!('Notification' in window)) {
-        hint.textContent = 'Браузер не поддерживает уведомления';
-        return;
-    }
-    if (!state.settings.notificationsEnabled) {
-        hint.textContent = '';
-        return;
-    }
-    if (Notification.permission === 'granted') hint.textContent = 'Уведомления включены';
-    else if (Notification.permission === 'denied') hint.textContent = 'Разрешение отклонено в браузере';
-    else hint.textContent = 'Ожидается разрешение...';
-}
-
 function migrateGlow(value) {
     if (value === 'off') return 0;
     if (value === 'soft') return 8;
     if (value === 'strong') return 16;
-    if (typeof value === 'number' && isFinite(value)) {
-        return clamp(value, GLOW_MIN, GLOW_MAX);
-    }
+    if (typeof value === 'number' && isFinite(value)) return clamp(value, GLOW_MIN, GLOW_MAX);
     return 0;
 }
 
@@ -93,26 +81,40 @@ export function loadSettings() {
     else s.theme = prefersDark ? 'dark' : 'light';
 
     s.theme = pickValid(s.theme, VALID.theme, 'light');
-    s.timerStyle = pickValid(s.timerStyle, VALID.timerStyle, 'ring');
+    s.timerStyle = pickValid(s.timerStyle, VALID.timerStyle, 'bar');
     s.backgroundMode = pickValid(s.backgroundMode, VALID.backgroundMode, 'orbs');
     s.particlesShape = pickValid(s.particlesShape, VALID.particlesShape, 'dot');
     s.heartAnimation = pickValid(s.heartAnimation, VALID.heartAnimation, 'none');
     s.customBaseTheme = pickValid(s.customBaseTheme, VALID.customBaseTheme, prefersDark ? 'dark' : 'light');
 
+    if (s.backgroundMode === 'none') s.backgroundMode = '1color';
+
     s.accentColor = sanitizeHex(s.accentColor, DEFAULT_SETTINGS.accentColor);
     s.lessonColor = sanitizeHex(s.lessonColor, DEFAULT_SETTINGS.lessonColor);
     s.breakColor = sanitizeHex(s.breakColor, DEFAULT_SETTINGS.breakColor);
     s.customThemeColor = sanitizeHex(s.customThemeColor, DEFAULT_SETTINGS.customThemeColor);
+    s.solidColor = sanitizeHex(s.solidColor, DEFAULT_SETTINGS.solidColor);
     s.gradientColor1 = sanitizeHex(s.gradientColor1, DEFAULT_SETTINGS.gradientColor1);
     s.gradientColor2 = sanitizeHex(s.gradientColor2, DEFAULT_SETTINGS.gradientColor2);
     s.heartOutlineColor = sanitizeHex(s.heartOutlineColor, DEFAULT_SETTINGS.heartOutlineColor);
 
     s.glowIntensity = migrateGlow(s.glowIntensity);
 
+    if (typeof s.customThemeOpacity !== 'number' || !isFinite(s.customThemeOpacity)) {
+        s.customThemeOpacity = DEFAULT_SETTINGS.customThemeOpacity;
+    }
+    s.customThemeOpacity = clamp(s.customThemeOpacity, THEME_OPACITY_MIN, THEME_OPACITY_MAX);
+
     if (typeof s.heartOutlineWidth !== 'number' || !isFinite(s.heartOutlineWidth)) {
         s.heartOutlineWidth = DEFAULT_SETTINGS.heartOutlineWidth;
     }
     s.heartOutlineWidth = clamp(s.heartOutlineWidth, HEART_OUTLINE_MIN, HEART_OUTLINE_MAX);
+
+    s.gradientRotate = !!s.gradientRotate;
+    s.gradientAngle = clamp(parseInt(s.gradientAngle, 10) || 135, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    s.gradientAngleFrom = clamp(parseInt(s.gradientAngleFrom, 10) || 30, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    s.gradientAngleTo = clamp(parseInt(s.gradientAngleTo, 10) || 210, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    s.gradientSpeed = clamp(parseInt(s.gradientSpeed, 10) || 50, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
 
     if (!Array.isArray(s.orbsColors) || s.orbsColors.length !== 3) {
         s.orbsColors = DEFAULT_SETTINGS.orbsColors.slice();
@@ -128,11 +130,11 @@ export function loadSettings() {
 
     if (typeof s.particlesCount !== 'number' || !isFinite(s.particlesCount)) s.particlesCount = 5;
     if (typeof s.particlesBlur !== 'number' || !isFinite(s.particlesBlur)) s.particlesBlur = 0;
-    if (typeof s.gradientAngle !== 'number' || !isFinite(s.gradientAngle)) s.gradientAngle = 135;
-    if (typeof s.notificationsEnabled !== 'boolean') s.notificationsEnabled = false;
     if (typeof s.heartOutlineCustom !== 'boolean') s.heartOutlineCustom = false;
 
     if (!s.heartOutlineCustom) s.heartOutlineColor = s.lessonColor;
+
+    delete s.notificationsEnabled;
 
     state.settings = s;
 }
@@ -149,7 +151,7 @@ export function applySettings() {
 
     if (s.theme === 'custom') {
         document.documentElement.setAttribute('data-theme', s.customBaseTheme === 'dark' ? 'dark' : 'light');
-        applyCustomSurfaceVars(s.customThemeColor);
+        applyCustomSurfaceVars(s.customThemeColor, s.customThemeOpacity);
     } else {
         clearCustomSurfaceVars();
         document.documentElement.setAttribute('data-theme', s.theme);
@@ -176,13 +178,13 @@ export function applySettings() {
     setActiveSegment('bg-switch', 'bg', s.backgroundMode);
     setActiveSegment('particles-shape', 'shape', s.particlesShape);
     setActiveSegment('heart-anim-switch', 'heartAnim', s.heartAnimation);
-    setActiveSegment('notify-switch', 'notify', s.notificationsEnabled ? 'on' : 'off');
 
     setColorInput('accent-color', s.accentColor);
     setColorInput('lesson-color', s.lessonColor);
     setColorInput('break-color', s.breakColor);
     setColorInput('heart-outline-color', s.heartOutlineColor);
     setColorInput('custom-theme-color', s.customThemeColor);
+    setColorInput('solid-color', s.solidColor);
     setColorInput('gradient-color1', s.gradientColor1);
     setColorInput('gradient-color2', s.gradientColor2);
 
@@ -190,6 +192,11 @@ export function applySettings() {
     const glowValue = $('glow-value');
     if (glowSlider) glowSlider.value = s.glowIntensity;
     if (glowValue) glowValue.textContent = s.glowIntensity;
+
+    const opSlider = $('custom-theme-opacity');
+    const opValue = $('custom-theme-opacity-value');
+    if (opSlider) opSlider.value = s.customThemeOpacity;
+    if (opValue) opValue.textContent = s.customThemeOpacity;
 
     const howSlider = $('heart-outline-width');
     const howValue = $('heart-outline-width-value');
@@ -206,21 +213,54 @@ export function applySettings() {
     if (pb) pb.value = Math.min(s.particlesBlur, 10);
     if (pbv) pbv.value = s.particlesBlur;
 
+    const rot = $('gradient-rotate');
+    if (rot) rot.checked = s.gradientRotate;
+
     const ga = $('gradient-angle');
     const gav = $('gradient-angle-value');
     if (ga) ga.value = s.gradientAngle;
     if (gav) gav.textContent = s.gradientAngle;
 
+    const gaf = $('gradient-angle-from');
+    const gafLbl = $('gradient-angle-from-value');
+    if (gaf) gaf.value = s.gradientAngleFrom;
+    if (gafLbl) gafLbl.textContent = s.gradientAngleFrom;
+
+    const gat = $('gradient-angle-to');
+    const gatLbl = $('gradient-angle-to-value');
+    if (gat) gat.value = s.gradientAngleTo;
+    if (gatLbl) gatLbl.textContent = s.gradientAngleTo;
+
+    const gafm = $('gradient-angle-from-mobile');
+    const gafmLbl = $('gradient-angle-from-mobile-value');
+    if (gafm) gafm.value = s.gradientAngleFrom;
+    if (gafmLbl) gafmLbl.textContent = s.gradientAngleFrom;
+
+    const gatm = $('gradient-angle-to-mobile');
+    const gatmLbl = $('gradient-angle-to-mobile-value');
+    if (gatm) gatm.value = s.gradientAngleTo;
+    if (gatmLbl) gatmLbl.textContent = s.gradientAngleTo;
+
+    const gs = $('gradient-speed');
+    const gsv = $('gradient-speed-value');
+    if (gs) gs.value = s.gradientSpeed;
+    if (gsv) gsv.textContent = s.gradientSpeed;
+
     toggleSubgroup('custom-theme-settings', s.theme === 'custom');
-    toggleSubgroup('particles-settings', s.backgroundMode === 'particles');
-    toggleSubgroup('orbs-settings', s.backgroundMode === 'orbs');
-    toggleSubgroup('gradient-settings', s.backgroundMode === 'gradient');
     toggleSubgroup('heart-settings', s.timerStyle === 'hearts');
+    toggleSubgroup('orbs-settings', s.backgroundMode === 'orbs');
+    toggleSubgroup('solid-settings', s.backgroundMode === '1color');
+    toggleSubgroup('gradient-settings', s.backgroundMode === 'gradient');
+    toggleSubgroup('particles-settings', s.backgroundMode === 'particles');
+
+    const staticAngle = $('gradient-static-angle');
+    const rotateSettings = $('gradient-rotate-settings');
+    if (staticAngle) staticAngle.style.display = s.gradientRotate ? 'none' : '';
+    if (rotateSettings) rotateSettings.style.display = s.gradientRotate ? '' : 'none';
 
     renderMultiColorList('orbs-colors', s.orbsColors, false);
     renderMultiColorList('particles-colors', s.particlesColors, true);
 
-    updateNotifyHint();
     applyBackground();
 }
 
@@ -250,6 +290,37 @@ function bindMultiColorList(containerId, key, removable) {
         applySettings();
         saveSettings();
     });
+}
+
+function initSectionToggle(sectionEl) {
+    const header = sectionEl.querySelector('.settings-section__header');
+    const chevron = sectionEl.querySelector('.settings-section__chevron');
+    if (!header) return;
+    header.addEventListener('click', () => {
+        const open = sectionEl.dataset.open === 'true';
+        const next = !open;
+        sectionEl.dataset.open = String(next);
+        header.setAttribute('aria-expanded', String(next));
+        if (chevron) {
+            chevron.classList.remove('is-spinning');
+            void chevron.offsetWidth;
+            chevron.classList.add('is-spinning');
+            setTimeout(() => chevron.classList.remove('is-spinning'), 320);
+        }
+    });
+}
+
+function openConfirm() {
+    const overlay = $('confirm-overlay');
+    if (!overlay) return;
+    overlay.classList.add('open');
+    const cancel = $('confirm-cancel');
+    if (cancel) cancel.focus();
+}
+
+function closeConfirm() {
+    const overlay = $('confirm-overlay');
+    if (overlay) overlay.classList.remove('open');
 }
 
 export function initSettingsUI() {
@@ -290,6 +361,9 @@ export function initSettingsUI() {
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
     overlay.addEventListener('click', closePanel);
 
+    document.querySelectorAll('.settings-section').forEach(initSectionToggle);
+
+    /* ----- Тема ----- */
     const themeSwitch = $('theme-switch');
     if (themeSwitch) {
         themeSwitch.addEventListener('click', e => {
@@ -306,31 +380,29 @@ export function initSettingsUI() {
         });
     }
 
-    const notifySwitch = $('notify-switch');
-    if (notifySwitch) {
-        notifySwitch.addEventListener('click', async e => {
-            const btn = e.target.closest('.seg-btn');
-            if (!btn) return;
-            if (btn.dataset.notify === 'on') {
-                if (!('Notification' in window)) state.settings.notificationsEnabled = false;
-                else if (Notification.permission === 'granted') state.settings.notificationsEnabled = true;
-                else if (Notification.permission === 'denied') state.settings.notificationsEnabled = false;
-                else {
-                    try {
-                        const perm = await Notification.requestPermission();
-                        state.settings.notificationsEnabled = (perm === 'granted');
-                    } catch (err) {
-                        state.settings.notificationsEnabled = false;
-                    }
-                }
-            } else {
-                state.settings.notificationsEnabled = false;
-            }
+    const ctc = $('custom-theme-color');
+    if (ctc) {
+        ctc.addEventListener('input', () => {
+            if (!isHexColor(ctc.value)) return;
+            state.settings.customThemeColor = ctc.value;
             applySettings();
             saveSettings();
         });
     }
 
+    const cto = $('custom-theme-opacity');
+    if (cto) {
+        cto.addEventListener('input', () => {
+            const v = clamp(parseInt(cto.value, 10) || 0, THEME_OPACITY_MIN, THEME_OPACITY_MAX);
+            state.settings.customThemeOpacity = v;
+            const label = $('custom-theme-opacity-value');
+            if (label) label.textContent = v;
+            applySettings();
+            saveSettings();
+        });
+    }
+
+    /* ----- Таймер ----- */
     const bindSegment = (id, key, dsKey, rerender) => {
         const el = $(id);
         if (!el) return;
@@ -388,16 +460,6 @@ export function initSettingsUI() {
         });
     });
 
-    const ctc = $('custom-theme-color');
-    if (ctc) {
-        ctc.addEventListener('input', () => {
-            if (!isHexColor(ctc.value)) return;
-            state.settings.customThemeColor = ctc.value;
-            applySettings();
-            saveSettings();
-        });
-    }
-
     const heartOutline = $('heart-outline-color');
     if (heartOutline) {
         heartOutline.addEventListener('input', () => {
@@ -419,6 +481,23 @@ export function initSettingsUI() {
         });
     }
 
+    /* ----- Фон: орбы ----- */
+    bindMultiColorList('orbs-colors', 'orbsColors', false);
+
+    /* ----- Фон: сплошной цвет ----- */
+    const solidColor = $('solid-color');
+    if (solidColor) {
+        solidColor.addEventListener('input', () => {
+            if (!isHexColor(solidColor.value)) return;
+            state.settings.solidColor = solidColor.value;
+            const label = $('solid-color-value');
+            if (label) label.textContent = solidColor.value;
+            applyBackground();
+            saveSettings();
+        });
+    }
+
+    /* ----- Фон: градиент ----- */
     ['gradient-color1', 'gradient-color2'].forEach(id => {
         const input = $(id);
         if (!input) return;
@@ -426,11 +505,105 @@ export function initSettingsUI() {
         input.addEventListener('input', () => {
             if (!isHexColor(input.value)) return;
             state.settings[key] = input.value;
-            applySettings();
+            applyBackground();
             saveSettings();
         });
     });
 
+    const rotToggle = $('gradient-rotate');
+    if (rotToggle) {
+        rotToggle.addEventListener('change', () => {
+            state.settings.gradientRotate = rotToggle.checked;
+            applySettings();
+            saveSettings();
+        });
+    }
+
+    const gradAngle = $('gradient-angle');
+    if (gradAngle) {
+        gradAngle.addEventListener('input', () => {
+            const v = clamp(parseInt(gradAngle.value, 10) || 0, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+            state.settings.gradientAngle = v;
+            const label = $('gradient-angle-value');
+            if (label) label.textContent = v;
+            applyBackground();
+            saveSettings();
+        });
+    }
+
+    /* Двойной ползунок: desktop (overlapping) + mobile (раздельные).
+       Все четыре входа пишут в state.gradientAngleFrom / To. */
+    const gafD = $('gradient-angle-from');
+    const gatD = $('gradient-angle-to');
+    const gafM = $('gradient-angle-from-mobile');
+    const gatM = $('gradient-angle-to-mobile');
+
+    function updateAngleFrom(v) {
+        v = clamp(v, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+        let to = state.settings.gradientAngleTo;
+        if (v >= to) {
+            to = Math.min(GRAD_ANGLE_MAX, v + 1);
+            state.settings.gradientAngleTo = to;
+            if (gatD) gatD.value = to;
+            if (gatM) gatM.value = to;
+            const lD = $('gradient-angle-to-value');
+            const lM = $('gradient-angle-to-mobile-value');
+            if (lD) lD.textContent = to;
+            if (lM) lM.textContent = to;
+        }
+        state.settings.gradientAngleFrom = v;
+        if (gafD) gafD.value = v;
+        if (gafM) gafM.value = v;
+        const lD = $('gradient-angle-from-value');
+        const lM = $('gradient-angle-from-mobile-value');
+        if (lD) lD.textContent = v;
+        if (lM) lM.textContent = v;
+        applyBackground();
+        saveSettings();
+    }
+
+    function updateAngleTo(v) {
+        v = clamp(v, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+        let from = state.settings.gradientAngleFrom;
+        if (v <= from) {
+            from = Math.max(GRAD_ANGLE_MIN, v - 1);
+            state.settings.gradientAngleFrom = from;
+            if (gafD) gafD.value = from;
+            if (gafM) gafM.value = from;
+            const lD = $('gradient-angle-from-value');
+            const lM = $('gradient-angle-from-mobile-value');
+            if (lD) lD.textContent = from;
+            if (lM) lM.textContent = from;
+        }
+        state.settings.gradientAngleTo = v;
+        if (gatD) gatD.value = v;
+        if (gatM) gatM.value = v;
+        const lD = $('gradient-angle-to-value');
+        const lM = $('gradient-angle-to-mobile-value');
+        if (lD) lD.textContent = v;
+        if (lM) lM.textContent = v;
+        applyBackground();
+        saveSettings();
+    }
+
+    if (gafD) gafD.addEventListener('input', () => updateAngleFrom(parseInt(gafD.value, 10) || 0));
+    if (gafM) gafM.addEventListener('input', () => updateAngleFrom(parseInt(gafM.value, 10) || 0));
+    if (gatD) gatD.addEventListener('input', () => updateAngleTo(parseInt(gatD.value, 10) || 0));
+    if (gatM) gatM.addEventListener('input', () => updateAngleTo(parseInt(gatM.value, 10) || 0));
+
+    const gradSpeed = $('gradient-speed');
+    if (gradSpeed) {
+        gradSpeed.addEventListener('input', () => {
+            const v = clamp(parseInt(gradSpeed.value, 10) || 50, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
+            state.settings.gradientSpeed = v;
+            const label = $('gradient-speed-value');
+            if (label) label.textContent = v;
+            applyBackground();
+            saveSettings();
+        });
+    }
+
+    /* ----- Фон: частицы ----- */
     const pc = $('particles-count');
     const pcv = $('particles-count-value');
     const applyCount = v => {
@@ -469,17 +642,6 @@ export function initSettingsUI() {
         pbv.addEventListener('blur', () => { pbv.value = state.settings.particlesBlur; });
     }
 
-    const ga = $('gradient-angle');
-    if (ga) {
-        ga.addEventListener('input', () => {
-            state.settings.gradientAngle = parseInt(ga.value, 10) || 0;
-            const label = $('gradient-angle-value');
-            if (label) label.textContent = ga.value;
-            applyBackground();
-            saveSettings();
-        });
-    }
-
     const addColor = $('particles-color-add');
     if (addColor) {
         addColor.addEventListener('click', () => {
@@ -490,12 +652,31 @@ export function initSettingsUI() {
         });
     }
 
-    bindMultiColorList('orbs-colors', 'orbsColors', false);
     bindMultiColorList('particles-colors', 'particlesColors', true);
 
+    /* ----- Сброс с подтверждением ----- */
     const reset = $('reset-settings');
-    if (reset) {
-        reset.addEventListener('click', () => {
+    if (reset) reset.addEventListener('click', openConfirm);
+
+    const cancel = $('confirm-cancel');
+    if (cancel) cancel.addEventListener('click', closeConfirm);
+
+    const overlayConfirm = $('confirm-overlay');
+    if (overlayConfirm) {
+        overlayConfirm.addEventListener('click', e => {
+            if (e.target === overlayConfirm) closeConfirm();
+        });
+        overlayConfirm.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeConfirm();
+            }
+        });
+    }
+
+    const ok = $('confirm-ok');
+    if (ok) {
+        ok.addEventListener('click', () => {
             state.settings = { ...DEFAULT_SETTINGS };
             try {
                 localStorage.removeItem(STORAGE_KEYS.THEME_EXPLICIT);
@@ -509,6 +690,7 @@ export function initSettingsUI() {
             saveSettings();
             renderStatus();
             renderSchedule(state.selectedDay);
+            closeConfirm();
         });
     }
 }
