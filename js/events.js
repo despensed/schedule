@@ -32,6 +32,17 @@ function firstLessonOfDay(day, currentSeconds, todayIdx) {
     return null;
 }
 
+/* Конец перемены — это начало следующего звонка. Поле break используем
+   только для последнего урока, где следующего звонка нет. */
+function breakEndFor(bells, i, endTotal) {
+    const next = bells[i + 1];
+    if (next) {
+        const [nsh, nsm] = next.start.split(':').map(Number);
+        return nsh * 3600 + nsm * 60;
+    }
+    return endTotal + (bells[i].break || 0) * 60;
+}
+
 export function getNextEvent(now, selected) {
     if (!state.schedule) return null;
     const todayIdx = (now.getDay() + 6) % 7;
@@ -54,7 +65,7 @@ export function getNextEvent(now, selected) {
             const [eh, em] = bell.end.split(':').map(Number);
             const startTotal = sh * 3600 + sm * 60;
             const endTotal = eh * 3600 + em * 60;
-            const breakEnd = endTotal + (bell.break || 0) * 60;
+            const breakEnd = breakEndFor(bells, i, endTotal);
             const subject = lessons[i];
             if (!hasSubject(subject)) continue;
 
