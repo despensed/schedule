@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { DAYS_EN, DAYS_RU, DAYS_ORDER } from './constants.js';
+import { DAYS_EN, DAYS_RU, DAYS_ORDER, DAYS_SHORT } from './constants.js';
 import { escapeHtml } from './utils.js';
 import { getSubjectIcon } from './icons.js';
 import { getNextEvent } from './events.js';
@@ -20,8 +20,6 @@ function updateTitle(timeStr) {
     }
 }
 
-/* «Завтра» / «Послезавтра» / «Через N дней» для урока на другом дне.
-   todayIdx: 0=Пн..6=Вс, targetIdx: 0=Пн..4=Пт. */
 function dayDistanceLabel(day, now) {
     const todayIdx = (now.getDay() + 6) % 7;
     const targetIdx = DAYS_ORDER.indexOf(day);
@@ -73,16 +71,13 @@ export function renderStatus() {
 
     let title;
     if (event.mode === 'active') title = 'Сейчас';
-    else if (isOtherDay) title = dayDistanceLabel(event.day, now);
+    else if (isOtherDay) title = `${dayDistanceLabel(event.day, now)} · ${DAYS_SHORT[event.day] || ''}`;
     else title = 'Далее';
 
     const progress = event.mode === 'upcoming'
         ? 1
         : (event.total > 0 ? event.elapsed / event.total : 0);
     const bounce = state.settings.heartAnimation === 'bounce';
-
-    /* Для «до начала» detail не нужен: фраза уже есть в label таймера,
-       а дубль у предмета только шумит. */
     const detail = event.mode === 'upcoming' ? '' : formatProgressDetail(event);
 
     const safeSubject = escapeHtml(event.subject);
@@ -183,4 +178,4 @@ export function renderStatus() {
     }
 
     updateTitle(timeStr);
-                }
+}
