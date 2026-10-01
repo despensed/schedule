@@ -3,7 +3,6 @@ import { DAYS_EN, DAYS_ORDER } from './constants.js';
 import { getSchoolDay } from './utils.js';
 import { renderStatus } from './status.js';
 import { renderSchedule } from './schedule-view.js';
-import { getNextEvent, maybeNotify } from './events.js';
 
 function writeHash(day) {
     const target = `#${day}`;
@@ -20,7 +19,7 @@ function readHashDay() {
     return DAYS_ORDER.includes(h) ? h : null;
 }
 
-export function selectDay(day, manual) {
+function selectDay(day, manual) {
     if (!DAYS_ORDER.includes(day)) return;
     state.selectedDay = day;
     state.manualDaySelection = (manual !== false) && (day !== getSchoolDay(state.currentActualDay));
@@ -41,18 +40,13 @@ function tick() {
         }
     }
 
-    if (state.schedule) {
-        const event = getNextEvent(now, state.selectedDay);
-        maybeNotify(event);
-
-        if (!document.hidden) {
-            state.tickCounter++;
-            if (state.tickCounter >= 15) {
-                state.tickCounter = 0;
-                renderSchedule(state.selectedDay);
-            }
-            renderStatus();
+    if (state.schedule && !document.hidden) {
+        state.tickCounter++;
+        if (state.tickCounter >= 15) {
+            state.tickCounter = 0;
+            renderSchedule(state.selectedDay);
         }
+        renderStatus();
     }
 }
 
@@ -95,6 +89,13 @@ function initSwipe() {
     }, { passive: true });
 }
 
+function isModalOpen() {
+    const panel = document.getElementById('settings-panel');
+    if (panel && panel.classList.contains('open')) return true;
+    const confirm = document.getElementById('confirm-overlay');
+    return !!(confirm && confirm.classList.contains('open'));
+}
+
 function initKeyboard() {
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
@@ -105,7 +106,8 @@ function initKeyboard() {
                 return;
             }
         }
-        if (e.target.matches('input, textarea, select')) return;
+        if (e.target instanceof Element && e.target.matches('input, textarea, select')) return;
+        if (isModalOpen()) return;
         if (e.key === 'ArrowLeft') {
             const idx = DAYS_ORDER.indexOf(state.selectedDay);
             if (idx > 0) selectDay(DAYS_ORDER[idx - 1], true);

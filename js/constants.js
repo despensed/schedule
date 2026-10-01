@@ -55,6 +55,14 @@ export const DEFAULT_SETTINGS = {
     heartAnimation: 'none'
 };
 
+export function createDefaultSettings() {
+    return {
+        ...DEFAULT_SETTINGS,
+        orbsColors: DEFAULT_SETTINGS.orbsColors.slice(),
+        particlesColors: DEFAULT_SETTINGS.particlesColors.slice()
+    };
+}
+
 export const VALID = {
     theme: ['light', 'dark', 'custom'],
     timerStyle: ['bar', 'ring', 'clock', 'hearts'],
@@ -107,6 +115,5 @@ export const SUBJECT_ICON_MAP = {
     'обж': 'shield',
     'индивидуальный проект': 'lightbulb',
     'разговоры о важном': 'message',
-    'государственный(башкирский)язык рб': 'languages',
     'государственный (башкирский) язык рб': 'languages'
 };

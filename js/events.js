@@ -1,22 +1,25 @@
 import { state } from './state.js';
 import { DAYS_ORDER, DAYS_SHORT } from './constants.js';
 import { hasSubject } from './utils.js';
-import { getBellsForDay, getLessonsForDay, dayHasLessons } from './schedule.js';
+import { getBellsForDay, getLessonsForDay, dayHasLessons, getBellLabel } from './schedule.js';
 
-function firstLessonOfDay(day, currentSeconds, todayIdx) {
-    const targetIdx = DAYS_ORDER.indexOf(day);
-    if (targetIdx < 0) return null;
-    let offset = targetIdx - todayIdx;
-    if (offset <= 0) offset += 7;
+function toSeconds(hhmm) {
+    const [sh, sm] = hhmm.split(':').map(Number);
+    return sh * 3600 + sm * 60;
+}
 
+function breakEndFor(bells, i, endTotal) {
+    const next = bells[i + 1];
+    return next ? toSeconds(next.start) : endTotal;
+}
+
+function upcomingLesson(day, currentSeconds, dayOffset) {
     const bells = getBellsForDay(day);
     const lessons = getLessonsForDay(day);
     for (let i = 0; i < bells.length; i++) {
         if (!hasSubject(lessons[i])) continue;
-        const bell = bells[i];
-        const [sh, sm] = bell.start.split(':').map(Number);
-        const startTotal = sh * 3600 + sm * 60;
-        const secondsUntil = (24 * 3600 - currentSeconds) + (offset - 1) * 24 * 3600 + startTotal;
+        const startTotal = toSeconds(bells[i].start);
+        const secondsUntil = (24 * 3600 - currentSeconds) + (dayOffset - 1) * 24 * 3600 + startTotal;
         return {
             mode: 'upcoming',
             type: 'lesson',
@@ -24,7 +27,7 @@ function firstLessonOfDay(day, currentSeconds, todayIdx) {
             total: secondsUntil,
             elapsed: 0,
             subject: lessons[i],
-            label: `${DAYS_SHORT[day]} · до начала ${bell.lesson} урока`,
+            label: `${DAYS_SHORT[day]} · до начала ${getBellLabel(i, true)}`,
             day,
             index: i
         };
@@ -32,15 +35,54 @@ function firstLessonOfDay(day, currentSeconds, todayIdx) {
     return null;
 }
 
-/* Конец перемены — это начало следующего звонка. Поле break используем
-   только для последнего урока, где следующего звонка нет. */
-function breakEndFor(bells, i, endTotal) {
-    const next = bells[i + 1];
-    if (next) {
-        const [nsh, nsm] = next.start.split(':').map(Number);
-        return nsh * 3600 + nsm * 60;
+function todayEvent(bells, lessons, currentSeconds) {
+    for (let i = 0; i < bells.length; i++) {
+        const subject = lessons[i];
+        if (!hasSubject(subject)) continue;
+
+        const startTotal = toSeconds(bells[i].start);
+        const endTotal = toSeconds(bells[i].end);
+        const breakEnd = breakEndFor(bells, i, endTotal);
+        const lessonLabel = getBellLabel(i, true);
+
+        if (currentSeconds >= startTotal && currentSeconds < endTotal) {
+            return {
+                mode: 'active',
+                type: 'lesson',
+                remaining: endTotal - currentSeconds,
+                total: endTotal - startTotal,
+                elapsed: currentSeconds - startTotal,
+                subject,
+                label: `до конца ${lessonLabel}`,
+                index: i
+            };
+        }
+        if (currentSeconds >= endTotal && currentSeconds < breakEnd) {
+            return {
+                mode: 'active',
+                type: 'break',
+                remaining: breakEnd - currentSeconds,
+                total: breakEnd - endTotal,
+                elapsed: currentSeconds - endTotal,
+                subject: `Перемена после ${lessonLabel}`,
+                label: 'перемена',
+                index: i
+            };
+        }
+        if (currentSeconds < startTotal) {
+            return {
+                mode: 'upcoming',
+                type: 'lesson',
+                remaining: startTotal - currentSeconds,
+                total: startTotal - currentSeconds,
+                elapsed: 0,
+                subject,
+                label: `до начала ${lessonLabel}`,
+                index: i
+            };
+        }
     }
-    return endTotal + (bells[i].break || 0) * 60;
+    return null;
 }
 
 export function getNextEvent(now, selected) {
@@ -52,116 +94,22 @@ export function getNextEvent(now, selected) {
 
     if (selected && selected !== todayName && DAYS_ORDER.includes(selected)) {
         if (!dayHasLessons(selected)) return { mode: 'empty', day: selected };
-        const ev = firstLessonOfDay(selected, currentSeconds, todayIdx);
+        let offset = DAYS_ORDER.indexOf(selected) - todayIdx;
+        if (offset <= 0) offset += 7;
+        const ev = upcomingLesson(selected, currentSeconds, offset);
         if (ev) return ev;
     }
 
     if (!isWeekend) {
-        const bells = getBellsForDay(todayName);
-        const lessons = getLessonsForDay(todayName);
-        for (let i = 0; i < bells.length; i++) {
-            const bell = bells[i];
-            const [sh, sm] = bell.start.split(':').map(Number);
-            const [eh, em] = bell.end.split(':').map(Number);
-            const startTotal = sh * 3600 + sm * 60;
-            const endTotal = eh * 3600 + em * 60;
-            const breakEnd = breakEndFor(bells, i, endTotal);
-            const subject = lessons[i];
-            if (!hasSubject(subject)) continue;
-
-            if (currentSeconds >= startTotal && currentSeconds < endTotal) {
-                return {
-                    mode: 'active',
-                    type: 'lesson',
-                    remaining: endTotal - currentSeconds,
-                    total: endTotal - startTotal,
-                    elapsed: currentSeconds - startTotal,
-                    subject,
-                    label: `до конца ${bell.lesson} урока`,
-                    day: todayName,
-                    index: i
-                };
-            }
-            if (currentSeconds >= endTotal && currentSeconds < breakEnd) {
-                return {
-                    mode: 'active',
-                    type: 'break',
-                    remaining: breakEnd - currentSeconds,
-                    total: breakEnd - endTotal,
-                    elapsed: currentSeconds - endTotal,
-                    subject: `Перемена после ${bell.lesson} урока`,
-                    label: 'перемена',
-                    day: todayName,
-                    index: i
-                };
-            }
-            if (currentSeconds < startTotal) {
-                const diff = startTotal - currentSeconds;
-                return {
-                    mode: 'upcoming',
-                    type: 'lesson',
-                    remaining: diff,
-                    total: diff,
-                    elapsed: 0,
-                    subject,
-                    label: `до начала ${bell.lesson} урока`,
-                    day: todayName,
-                    index: i
-                };
-            }
-        }
+        const ev = todayEvent(getBellsForDay(todayName), getLessonsForDay(todayName), currentSeconds);
+        if (ev) return { ...ev, day: todayName };
     }
 
     for (let offset = 1; offset <= 7; offset++) {
         const nextIdx = (todayIdx + offset) % 7;
         if (nextIdx >= 5) continue;
-        const dayName = DAYS_ORDER[nextIdx];
-        const bells = getBellsForDay(dayName);
-        const lessons = getLessonsForDay(dayName);
-        for (let i = 0; i < bells.length; i++) {
-            const bell = bells[i];
-            if (!hasSubject(lessons[i])) continue;
-            const [sh, sm] = bell.start.split(':').map(Number);
-            const startTotal = sh * 3600 + sm * 60;
-            const secondsUntil = (24 * 3600 - currentSeconds) + (offset - 1) * 24 * 3600 + startTotal;
-            return {
-                mode: 'upcoming',
-                type: 'lesson',
-                remaining: secondsUntil,
-                total: secondsUntil,
-                elapsed: 0,
-                subject: lessons[i],
-                label: `${DAYS_SHORT[dayName]} · до начала ${bell.lesson} урока`,
-                day: dayName,
-                index: i
-            };
-        }
+        const ev = upcomingLesson(DAYS_ORDER[nextIdx], currentSeconds, offset);
+        if (ev) return ev;
     }
     return null;
-}
-
-export function maybeNotify(event) {
-    if (!state.settings.notificationsEnabled) return;
-    if (!('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
-
-    if (!event) {
-        state.lastNotifiedKey = null;
-        return;
-    }
-
-    if (event.mode !== 'active' || event.type !== 'lesson') {
-        if (state.lastNotifiedKey) {
-            const prefix = `${event.day}|${event.index}|`;
-            if (!String(state.lastNotifiedKey).startsWith(prefix)) state.lastNotifiedKey = null;
-        }
-        return;
-    }
-
-    const key = `${event.day}|${event.index}|${event.subject}`;
-    if (key === state.lastNotifiedKey) return;
-    state.lastNotifiedKey = key;
-    try {
-        new Notification('Урок начался', { body: event.subject, tag: 'lesson-start' });
-    } catch (e) {}
 }

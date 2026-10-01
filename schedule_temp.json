@@ -1,14 +1,19 @@
 {
-  "active": true,
-  "day": "thursday",
-  "bellsMode": "monday",
-  "lessons": [
-    "",
-    "",
-    "История",
-    "Алгебра",
-    "Обществознание",
-    "Алгебра",
-    "Иностранный язык"
-  ]
+  "version": 2,
+  "days": {
+    "monday": null,
+    "tuesday": null,
+    "wednesday": null,
+    "thursday": [
+      "",
+      "",
+      "История",
+      "Алгебра",
+      "Обществознание",
+      "Алгебра",
+      "Иностранный язык",
+      ""
+    ],
+    "friday": null
+  }
 }

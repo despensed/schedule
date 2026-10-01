@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from './constants.js';
+import { createDefaultSettings } from './constants.js';
 
 export const state = {
     schedule: null,
@@ -8,7 +8,6 @@ export const state = {
     manualDaySelection: false,
     lastTitleStr: '',
     tickCounter: 0,
-    lastNotifiedKey: null,
     statusInterval: null,
-    settings: { ...DEFAULT_SETTINGS }
+    settings: createDefaultSettings()
 };

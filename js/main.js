@@ -4,7 +4,6 @@ import { loadSettings, applySettings, initSettingsUI, saveSettings } from './set
 import { particlesInit } from './background.js';
 import { loadSchedule, loadTempSchedule, updateTempBadge } from './schedule.js';
 import { renderSchedule } from './schedule-view.js';
-import { renderStatus } from './status.js';
 import { initNavigation, pickInitialDay, startStatusInterval } from './navigation.js';
 
 async function init() {
@@ -24,17 +23,17 @@ async function init() {
         });
     }
 
+    state.currentActualDay = DAYS_EN[new Date().getDay()];
+    pickInitialDay();
+    initNavigation();
+
     try {
         state.schedule = await loadSchedule();
         state.tempSchedule = await loadTempSchedule();
         updateTempBadge();
 
-        state.currentActualDay = DAYS_EN[new Date().getDay()];
-        pickInitialDay();
-        initNavigation();
-
         renderSchedule(state.selectedDay);
-        renderStatus();
+
         startStatusInterval();
     } catch (error) {
         console.error('Ошибка загрузки:', error);

@@ -96,9 +96,6 @@
 .settings-section[data-open="true"] .settings-section__chevron {
     transform: rotate(90deg);
 }
-.settings-section__chevron.is-spinning {
-    filter: blur(1.2px);
-}
 
 .settings-section__body {
     display: grid;

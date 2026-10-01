@@ -31,6 +31,7 @@
             var THEME_EXPLICIT_KEY = 'theme-explicit';
 
             function isHex(v) { return typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v); }
+            function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
             function hexToRgb(hex) {
                 var c = hex.replace('#', '');
                 if (c.length !== 6 || !/^[0-9a-f]{6}$/i.test(c)) return { r: 99, g: 102, b: 241 };
@@ -51,10 +52,11 @@
             var explicit = localStorage.getItem(THEME_EXPLICIT_KEY) === '1';
             var savedTheme = localStorage.getItem(THEME_KEY);
             var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            var theme = (explicit && savedTheme) ? savedTheme : (parsed.theme || (prefersDark ? 'dark' : 'light'));
-            if (theme !== 'custom' && theme !== 'light' && theme !== 'dark') {
-                theme = prefersDark ? 'dark' : 'light';
-            }
+
+            var THEME_VALUES = ['light', 'dark', 'custom'];
+            var theme = (explicit && THEME_VALUES.indexOf(savedTheme) >= 0)
+                ? savedTheme
+                : (prefersDark ? 'dark' : 'light');
 
             var root = document.documentElement;
             var s = root.style;
@@ -63,14 +65,16 @@
                 root.setAttribute('data-theme', parsed.customBaseTheme === 'dark' ? 'dark' : 'light');
                 var rgb = hexToRgb(parsed.customThemeColor);
                 var op = (typeof parsed.customThemeOpacity === 'number' && isFinite(parsed.customThemeOpacity))
-                    ? parsed.customThemeOpacity : 25;
-                var a = 1 - Math.min(100, Math.max(0, op)) / 100;
+                    ? clamp(parsed.customThemeOpacity, 0, 100) : 25;
+                var a = 1 - op / 100;
                 s.setProperty('--surface', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + a.toFixed(3) + ')');
                 s.setProperty('--surface-strong', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + Math.min(1, a + 0.15).toFixed(3) + ')');
                 s.setProperty('--surface-solid', parsed.customThemeColor);
                 s.setProperty('--surface-2', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + Math.max(0, a - 0.2).toFixed(3) + ')');
             } else {
-                root.setAttribute('data-theme', theme === 'custom' ? 'light' : theme);
+                root.setAttribute('data-theme', theme === 'custom'
+                    ? (parsed.customBaseTheme === 'dark' ? 'dark' : 'light')
+                    : theme);
             }
 
             if (isHex(parsed.accentColor)) {
@@ -83,9 +87,11 @@
 
             var glowRaw = parsed.glowIntensity;
             var glowNum = 0;
-            if (glowRaw === 'soft') glowNum = 8;
+            if (glowRaw === 'off') glowNum = 0;
+            else if (glowRaw === 'soft') glowNum = 8;
             else if (glowRaw === 'strong') glowNum = 16;
             else if (typeof glowRaw === 'number' && isFinite(glowRaw)) glowNum = glowRaw;
+            glowNum = clamp(glowNum, 0, 20);
             if (glowNum > 0) {
                 root.setAttribute('data-glow', 'on');
                 s.setProperty('--glow-blur', glowNum + 'px');
@@ -94,8 +100,8 @@
             }
 
             var how = parsed.heartOutlineWidth;
-            if (typeof how !== 'number' || !isFinite(how) || how < 0) how = 1.5;
-            s.setProperty('--heart-outline-width', how + 'px');
+            if (typeof how !== 'number' || !isFinite(how)) how = 1.5;
+            s.setProperty('--heart-outline-width', clamp(how, 0, 4) + 'px');
 
             if (Array.isArray(parsed.orbsColors)) {
                 for (var i = 0; i < 3; i++) {
@@ -198,7 +204,7 @@
                             <label class="setting-label" for="accent-color">Основной цвет</label>
                             <div class="color-row">
                                 <input type="color" id="accent-color" value="#6366f1">
-                                <span class="color-value" id="accent-value">#6366f1</span>
+                                <span class="color-value" id="accent-color-value">#6366f1</span>
                             </div>
                         </div>
 
@@ -206,7 +212,7 @@
                             <label class="setting-label" for="lesson-color">Цвет урока</label>
                             <div class="color-row">
                                 <input type="color" id="lesson-color" value="#6366f1">
-                                <span class="color-value" id="lesson-value">#6366f1</span>
+                                <span class="color-value" id="lesson-color-value">#6366f1</span>
                             </div>
                         </div>
 
@@ -214,7 +220,7 @@
                             <label class="setting-label" for="break-color">Цвет перемены</label>
                             <div class="color-row">
                                 <input type="color" id="break-color" value="#f59e0b">
-                                <span class="color-value" id="break-value">#f59e0b</span>
+                                <span class="color-value" id="break-color-value">#f59e0b</span>
                             </div>
                         </div>
 
@@ -339,17 +345,21 @@
 
                         <div class="setting-subgroup" id="particles-settings">
                             <div class="setting-group">
-                                <label class="setting-label" for="particles-count">Количество частиц:
-                                    <input type="number" id="particles-count-value" class="num-input" min="1" max="100" value="5">
-                                </label>
-                                <input type="range" id="particles-count" min="1" max="10" value="5">
+                                <span class="setting-label">Количество частиц:
+                                    <input type="number" id="particles-count-value" class="num-input" min="1" max="100" value="5"
+                                           aria-label="Количество частиц">
+                                </span>
+                                <input type="range" id="particles-count" min="1" max="100" step="1" value="5"
+                                       aria-label="Количество частиц">
                             </div>
 
                             <div class="setting-group">
-                                <label class="setting-label" for="particles-blur">Размытие:
-                                    <input type="number" id="particles-blur-value" class="num-input" min="0" max="100" value="0">
-                                </label>
-                                <input type="range" id="particles-blur" min="0" max="10" value="0">
+                                <span class="setting-label">Размытие:
+                                    <input type="number" id="particles-blur-value" class="num-input" min="0" max="100" value="0"
+                                           aria-label="Размытие частиц">
+                                </span>
+                                <input type="range" id="particles-blur" min="0" max="100" step="1" value="0"
+                                       aria-label="Размытие частиц">
                             </div>
 
                             <div class="setting-group">
@@ -413,6 +423,12 @@
     <div id="temp-badge" class="offline-badge temp-badge" role="status" hidden></div>
 
     <main>
+        <noscript>
+            <section class="noscript-card">
+                <h2 class="section-title">Сейчас</h2>
+                <p class="status-text-only">Для просмотра расписания нужен JavaScript.</p>
+            </section>
+        </noscript>
         <section id="home">
             <h2 class="section-title">Сейчас</h2>
             <p class="status-text-only">Загрузка...</p>

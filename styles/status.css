@@ -36,15 +36,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 #home.event-upcoming .ring-fg,
 #home.event-upcoming .status-bar-fill { opacity: 0.42; }
 
-/* Свечение.
-   Значение задаётся числом пикселей через --glow-blur. Чтобы рост
-   значения давал именно усиление, а не «мутное пятно», каждая фигура
-   получает две тени подряд: узкую (var / 2) и широкую (var).
-   - для сердец filter висит на .heart-icon, а не на .heart-fill:
-     у fill есть clip-path, а filter+clip-path на одном SVG-элементе
-     в Chromium даёт прямоугольную тень;
-   - для часов filter вместо text-shadow: цифры лежат в .clock-digit
-     с overflow:hidden для анимации прокрутки, text-shadow обрезается. */
 :root[data-glow="on"] #home[class*="event-"] .ring-fg,
 :root[data-glow="on"] #home[class*="event-"] .status-bar-fill,
 :root[data-glow="on"] #home[class*="event-"] .heart-icon,
@@ -202,7 +193,8 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     text-align: center;
     font-weight: 500;
 }
-.status-detail-inline {
+.status-detail-inline,
+.status-detail-suffix {
     color: var(--text-muted);
     font-weight: 500;
     font-size: 0.85em;
@@ -278,8 +270,8 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 
 .subject-icon {
     display: block;
-    width: 18px !important;
-    height: 18px !important;
+    width: 18px;
+    height: 18px;
     min-width: 18px;
     min-height: 18px;
     max-width: 18px;
@@ -306,6 +298,16 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     flex-wrap: wrap;
 }
 .status-ring-subject span { overflow-wrap: anywhere; word-break: break-word; }
+
+.noscript-card {
+    background: var(--surface);
+    padding: 28px 24px;
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+}
 
 .status-text-only {
     font-size: 0.95rem;

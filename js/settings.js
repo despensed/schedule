@@ -1,10 +1,10 @@
 import { state } from './state.js';
-import { DEFAULT_SETTINGS, VALID, STORAGE_KEYS } from './constants.js';
+import { DEFAULT_SETTINGS, createDefaultSettings, VALID, STORAGE_KEYS } from './constants.js';
 import {
     $, isHexColor, sanitizeHex, pickValid, pickTextColor, clamp, trapFocus
 } from './utils.js';
 import {
-    applyBackground, applyCustomSurfaceVars, clearCustomSurfaceVars, particlesStart
+    applyBackground, applyCustomSurfaceVars, clearCustomSurfaceVars
 } from './background.js';
 import { renderStatus } from './status.js';
 import { renderSchedule } from './schedule-view.js';
@@ -42,20 +42,39 @@ function toggleSubgroup(id, visible) {
     if (el) el.classList.toggle('visible', visible);
 }
 
+const COLOR_DEL_BTN = '<button type="button" class="multi-color-del" data-del="1" aria-label="Удалить цвет">×</button>';
+
+function multiColorRowHtml() {
+    return `
+            <div class="multi-color-row">
+                <input type="color" value="#000000">
+                <span class="color-value">#000000</span>
+            </div>`;
+}
+
 function renderMultiColorList(containerId, colors, removable) {
     const el = $(containerId);
     if (!el) return;
-    el.innerHTML = colors.map((c, i) => {
-        const safe = isHexColor(c) ? c : '#000000';
-        return `
-            <div class="multi-color-row" data-index="${i}">
-                <input type="color" value="${safe}">
-                <span class="color-value">${safe}</span>
-                ${removable && colors.length > 1
-                    ? '<button type="button" class="multi-color-del" data-del="1" aria-label="Удалить цвет">×</button>'
-                    : ''}
-            </div>`;
-    }).join('');
+
+    const rows = Array.from(el.children);
+    while (rows.length > colors.length) rows.pop().remove();
+    while (rows.length < colors.length) {
+        el.insertAdjacentHTML('beforeend', multiColorRowHtml());
+        rows.push(el.lastElementChild);
+    }
+
+    const wantDel = removable && colors.length > 1;
+    rows.forEach((row, i) => {
+        const safe = isHexColor(colors[i]) ? colors[i] : '#000000';
+        row.dataset.index = String(i);
+        const input = row.querySelector('input[type="color"]');
+        if (input && input.value.toLowerCase() !== safe.toLowerCase()) input.value = safe;
+        const label = row.querySelector('.color-value');
+        if (label && label.textContent !== safe) label.textContent = safe;
+        const del = row.querySelector('.multi-color-del');
+        if (wantDel && !del) row.insertAdjacentHTML('beforeend', COLOR_DEL_BTN);
+        else if (!wantDel && del) del.remove();
+    });
 }
 
 function migrateGlow(value) {
@@ -72,7 +91,7 @@ export function loadSettings() {
         saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}') || {};
     } catch (e) {}
 
-    const s = { ...DEFAULT_SETTINGS, ...saved };
+    const s = { ...createDefaultSettings(), ...saved };
 
     const explicit = localStorage.getItem(STORAGE_KEYS.THEME_EXPLICIT) === '1';
     const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
@@ -86,8 +105,6 @@ export function loadSettings() {
     s.particlesShape = pickValid(s.particlesShape, VALID.particlesShape, 'dot');
     s.heartAnimation = pickValid(s.heartAnimation, VALID.heartAnimation, 'none');
     s.customBaseTheme = pickValid(s.customBaseTheme, VALID.customBaseTheme, prefersDark ? 'dark' : 'light');
-
-    if (s.backgroundMode === 'none') s.backgroundMode = '1color';
 
     s.accentColor = sanitizeHex(s.accentColor, DEFAULT_SETTINGS.accentColor);
     s.lessonColor = sanitizeHex(s.lessonColor, DEFAULT_SETTINGS.lessonColor);
@@ -112,8 +129,7 @@ export function loadSettings() {
 
     s.gradientRotate = !!s.gradientRotate;
     s.gradientAngle = clamp(parseInt(s.gradientAngle, 10) || 135, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
-    s.gradientAngleFrom = clamp(parseInt(s.gradientAngleFrom, 10) || 30, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
-    s.gradientAngleTo = clamp(parseInt(s.gradientAngleTo, 10) || 210, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    [s.gradientAngleFrom, s.gradientAngleTo] = normalizeDualAngle(s.gradientAngleFrom, s.gradientAngleTo);
     s.gradientSpeed = clamp(parseInt(s.gradientSpeed, 10) || 50, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
 
     if (!Array.isArray(s.orbsColors) || s.orbsColors.length !== 3) {
@@ -134,8 +150,6 @@ export function loadSettings() {
 
     if (!s.heartOutlineCustom) s.heartOutlineColor = s.lessonColor;
 
-    delete s.notificationsEnabled;
-
     state.settings = s;
 }
 
@@ -144,6 +158,55 @@ export function saveSettings() {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
         localStorage.setItem(STORAGE_KEYS.THEME, state.settings.theme);
     } catch (e) {}
+}
+
+const DUAL_ANGLE_GAP = 1;
+
+const DUAL_ANGLE_IDS = {
+    gradientAngleFrom: {
+        desktop: 'gradient-angle-from',
+        mobile: 'gradient-angle-from-mobile',
+        label: 'gradient-angle-from-value',
+        labelMobile: 'gradient-angle-from-mobile-value'
+    },
+    gradientAngleTo: {
+        desktop: 'gradient-angle-to',
+        mobile: 'gradient-angle-to-mobile',
+        label: 'gradient-angle-to-value',
+        labelMobile: 'gradient-angle-to-mobile-value'
+    }
+};
+
+function normalizeDualAngle(from, to) {
+    from = clamp(parseInt(from, 10) || 0, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    to = clamp(parseInt(to, 10) || 0, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    if (from > to) { const t = from; from = to; to = t; }
+    if (to - from < DUAL_ANGLE_GAP) to = Math.min(GRAD_ANGLE_MAX, from + DUAL_ANGLE_GAP);
+    return [from, to];
+}
+
+function setDualAngle(key, raw) {
+    const s = state.settings;
+    const other = key === 'gradientAngleFrom' ? 'gradientAngleTo' : 'gradientAngleFrom';
+    const wanted = clamp(parseInt(raw, 10) || 0, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    s[key] = key === 'gradientAngleFrom'
+        ? Math.min(wanted, s[other] - DUAL_ANGLE_GAP)
+        : Math.max(wanted, s[other] + DUAL_ANGLE_GAP);
+    s[key] = clamp(s[key], GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    syncDualAngleInputs(key);
+    applyBackground();
+    saveSettings();
+}
+
+function syncDualAngleInputs(activeKey) {
+    const s = state.settings;
+    for (const key of Object.keys(DUAL_ANGLE_IDS)) {
+        const ids = DUAL_ANGLE_IDS[key];
+        for (const el of [$(ids.desktop), $(ids.mobile)]) if (el) el.value = s[key];
+        for (const el of [$(ids.label), $(ids.labelMobile)]) if (el) el.textContent = s[key];
+        const el = $(ids.desktop);
+        if (el) el.style.zIndex = activeKey === key ? '3' : '1';
+    }
 }
 
 export function applySettings() {
@@ -205,12 +268,12 @@ export function applySettings() {
 
     const pc = $('particles-count');
     const pcv = $('particles-count-value');
-    if (pc) pc.value = Math.min(s.particlesCount, 10);
+    if (pc) pc.value = s.particlesCount;
     if (pcv) pcv.value = s.particlesCount;
 
     const pb = $('particles-blur');
     const pbv = $('particles-blur-value');
-    if (pb) pb.value = Math.min(s.particlesBlur, 10);
+    if (pb) pb.value = s.particlesBlur;
     if (pbv) pbv.value = s.particlesBlur;
 
     const rot = $('gradient-rotate');
@@ -221,25 +284,20 @@ export function applySettings() {
     if (ga) ga.value = s.gradientAngle;
     if (gav) gav.textContent = s.gradientAngle;
 
-    const gaf = $('gradient-angle-from');
-    const gafLbl = $('gradient-angle-from-value');
-    if (gaf) gaf.value = s.gradientAngleFrom;
-    if (gafLbl) gafLbl.textContent = s.gradientAngleFrom;
-
-    const gat = $('gradient-angle-to');
-    const gatLbl = $('gradient-angle-to-value');
-    if (gat) gat.value = s.gradientAngleTo;
-    if (gatLbl) gatLbl.textContent = s.gradientAngleTo;
-
-    const gafm = $('gradient-angle-from-mobile');
-    const gafmLbl = $('gradient-angle-from-mobile-value');
-    if (gafm) gafm.value = s.gradientAngleFrom;
-    if (gafmLbl) gafmLbl.textContent = s.gradientAngleFrom;
-
-    const gatm = $('gradient-angle-to-mobile');
-    const gatmLbl = $('gradient-angle-to-mobile-value');
-    if (gatm) gatm.value = s.gradientAngleTo;
-    if (gatmLbl) gatmLbl.textContent = s.gradientAngleTo;
+    for (const key of Object.keys(DUAL_ANGLE_IDS)) {
+        const v = clamp(state.settings[key], GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+        state.settings[key] = v;
+        const ids = DUAL_ANGLE_IDS[key];
+        for (const el of [$(ids.desktop), $(ids.mobile)]) if (el) el.value = v;
+        for (const el of [$(ids.label), $(ids.labelMobile)]) if (el) el.textContent = v;
+    }
+    const dualFrom = $(DUAL_ANGLE_IDS.gradientAngleFrom.desktop);
+    const dualTo = $(DUAL_ANGLE_IDS.gradientAngleTo.desktop);
+    if (dualFrom && dualTo) {
+        const low = state.settings.gradientAngleFrom <= state.settings.gradientAngleTo;
+        dualFrom.style.zIndex = low ? '3' : '1';
+        dualTo.style.zIndex = low ? '1' : '3';
+    }
 
     const gs = $('gradient-speed');
     const gsv = $('gradient-speed-value');
@@ -294,26 +352,24 @@ function bindMultiColorList(containerId, key, removable) {
 
 function initSectionToggle(sectionEl) {
     const header = sectionEl.querySelector('.settings-section__header');
-    const chevron = sectionEl.querySelector('.settings-section__chevron');
     if (!header) return;
     header.addEventListener('click', () => {
         const open = sectionEl.dataset.open === 'true';
         const next = !open;
         sectionEl.dataset.open = String(next);
         header.setAttribute('aria-expanded', String(next));
-        if (chevron) {
-            chevron.classList.remove('is-spinning');
-            void chevron.offsetWidth;
-            chevron.classList.add('is-spinning');
-            setTimeout(() => chevron.classList.remove('is-spinning'), 320);
-        }
     });
 }
+
+let confirmReturnFocus = null;
+let releaseConfirmTrap = null;
 
 function openConfirm() {
     const overlay = $('confirm-overlay');
     if (!overlay) return;
+    confirmReturnFocus = document.activeElement;
     overlay.classList.add('open');
+    releaseConfirmTrap = trapFocus(overlay);
     const cancel = $('confirm-cancel');
     if (cancel) cancel.focus();
 }
@@ -321,6 +377,10 @@ function openConfirm() {
 function closeConfirm() {
     const overlay = $('confirm-overlay');
     if (overlay) overlay.classList.remove('open');
+    if (releaseConfirmTrap) releaseConfirmTrap();
+    releaseConfirmTrap = null;
+    if (confirmReturnFocus && typeof confirmReturnFocus.focus === 'function') confirmReturnFocus.focus();
+    confirmReturnFocus = null;
 }
 
 export function initSettingsUI() {
@@ -363,7 +423,6 @@ export function initSettingsUI() {
 
     document.querySelectorAll('.settings-section').forEach(initSectionToggle);
 
-    /* ----- Тема ----- */
     const themeSwitch = $('theme-switch');
     if (themeSwitch) {
         themeSwitch.addEventListener('click', e => {
@@ -402,7 +461,6 @@ export function initSettingsUI() {
         });
     }
 
-    /* ----- Таймер ----- */
     const bindSegment = (id, key, dsKey, rerender) => {
         const el = $(id);
         if (!el) return;
@@ -481,10 +539,8 @@ export function initSettingsUI() {
         });
     }
 
-    /* ----- Фон: орбы ----- */
     bindMultiColorList('orbs-colors', 'orbsColors', false);
 
-    /* ----- Фон: сплошной цвет ----- */
     const solidColor = $('solid-color');
     if (solidColor) {
         solidColor.addEventListener('input', () => {
@@ -497,7 +553,6 @@ export function initSettingsUI() {
         });
     }
 
-    /* ----- Фон: градиент ----- */
     ['gradient-color1', 'gradient-color2'].forEach(id => {
         const input = $(id);
         if (!input) return;
@@ -531,65 +586,11 @@ export function initSettingsUI() {
         });
     }
 
-    /* Двойной ползунок: desktop (overlapping) + mobile (раздельные).
-       Все четыре входа пишут в state.gradientAngleFrom / To. */
-    const gafD = $('gradient-angle-from');
-    const gatD = $('gradient-angle-to');
-    const gafM = $('gradient-angle-from-mobile');
-    const gatM = $('gradient-angle-to-mobile');
-
-    function updateAngleFrom(v) {
-        v = clamp(v, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
-        let to = state.settings.gradientAngleTo;
-        if (v >= to) {
-            to = Math.min(GRAD_ANGLE_MAX, v + 1);
-            state.settings.gradientAngleTo = to;
-            if (gatD) gatD.value = to;
-            if (gatM) gatM.value = to;
-            const lD = $('gradient-angle-to-value');
-            const lM = $('gradient-angle-to-mobile-value');
-            if (lD) lD.textContent = to;
-            if (lM) lM.textContent = to;
+    for (const key of Object.keys(DUAL_ANGLE_IDS)) {
+        for (const el of [$(DUAL_ANGLE_IDS[key].desktop), $(DUAL_ANGLE_IDS[key].mobile)]) {
+            if (el) el.addEventListener('input', () => setDualAngle(key, el.value));
         }
-        state.settings.gradientAngleFrom = v;
-        if (gafD) gafD.value = v;
-        if (gafM) gafM.value = v;
-        const lD = $('gradient-angle-from-value');
-        const lM = $('gradient-angle-from-mobile-value');
-        if (lD) lD.textContent = v;
-        if (lM) lM.textContent = v;
-        applyBackground();
-        saveSettings();
     }
-
-    function updateAngleTo(v) {
-        v = clamp(v, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
-        let from = state.settings.gradientAngleFrom;
-        if (v <= from) {
-            from = Math.max(GRAD_ANGLE_MIN, v - 1);
-            state.settings.gradientAngleFrom = from;
-            if (gafD) gafD.value = from;
-            if (gafM) gafM.value = from;
-            const lD = $('gradient-angle-from-value');
-            const lM = $('gradient-angle-from-mobile-value');
-            if (lD) lD.textContent = from;
-            if (lM) lM.textContent = from;
-        }
-        state.settings.gradientAngleTo = v;
-        if (gatD) gatD.value = v;
-        if (gatM) gatM.value = v;
-        const lD = $('gradient-angle-to-value');
-        const lM = $('gradient-angle-to-mobile-value');
-        if (lD) lD.textContent = v;
-        if (lM) lM.textContent = v;
-        applyBackground();
-        saveSettings();
-    }
-
-    if (gafD) gafD.addEventListener('input', () => updateAngleFrom(parseInt(gafD.value, 10) || 0));
-    if (gafM) gafM.addEventListener('input', () => updateAngleFrom(parseInt(gafM.value, 10) || 0));
-    if (gatD) gatD.addEventListener('input', () => updateAngleTo(parseInt(gatD.value, 10) || 0));
-    if (gatM) gatM.addEventListener('input', () => updateAngleTo(parseInt(gatM.value, 10) || 0));
 
     const gradSpeed = $('gradient-speed');
     if (gradSpeed) {
@@ -603,13 +604,12 @@ export function initSettingsUI() {
         });
     }
 
-    /* ----- Фон: частицы ----- */
     const pc = $('particles-count');
     const pcv = $('particles-count-value');
     const applyCount = v => {
         v = clamp(v | 0, 1, 100);
         state.settings.particlesCount = v;
-        if (pc) pc.value = Math.min(v, 10);
+        if (pc) pc.value = v;
         if (pcv) pcv.value = v;
         applyBackground();
         saveSettings();
@@ -628,7 +628,7 @@ export function initSettingsUI() {
     const applyBlur = v => {
         v = clamp(v | 0, 0, 100);
         state.settings.particlesBlur = v;
-        if (pb) pb.value = Math.min(v, 10);
+        if (pb) pb.value = v;
         if (pbv) pbv.value = v;
         applyBackground();
         saveSettings();
@@ -654,7 +654,6 @@ export function initSettingsUI() {
 
     bindMultiColorList('particles-colors', 'particlesColors', true);
 
-    /* ----- Сброс с подтверждением ----- */
     const reset = $('reset-settings');
     if (reset) reset.addEventListener('click', openConfirm);
 
@@ -667,17 +666,19 @@ export function initSettingsUI() {
             if (e.target === overlayConfirm) closeConfirm();
         });
         overlayConfirm.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                closeConfirm();
-            }
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+
+            e.stopPropagation();
+            closeConfirm();
         });
     }
 
     const ok = $('confirm-ok');
     if (ok) {
         ok.addEventListener('click', () => {
-            state.settings = { ...DEFAULT_SETTINGS };
+
+            state.settings = createDefaultSettings();
             try {
                 localStorage.removeItem(STORAGE_KEYS.THEME_EXPLICIT);
                 localStorage.removeItem(STORAGE_KEYS.THEME);

@@ -32,6 +32,7 @@ function spriteSignature() {
 function particlesResize() {
     if (!particlesState.canvas) return;
 
+    particlesState.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const prevW = particlesState.W;
     const prevH = particlesState.H;
 
@@ -60,10 +61,10 @@ function randomShape() {
     return shapes[Math.floor(Math.random() * shapes.length)];
 }
 
-function pickColor() {
+function pickColor(index) {
     const colors = state.settings.particlesColors;
     if (!Array.isArray(colors) || !colors.length) return state.settings.accentColor || '#6366f1';
-    return colors[Math.floor(Math.random() * colors.length)];
+    return colors[index % colors.length];
 }
 
 function buildSprite(shape, size, color) {
@@ -103,11 +104,11 @@ function buildSprite(shape, size, color) {
     return { cv, dim, pad };
 }
 
-function createParticle() {
+function createParticle(index) {
     let shape = state.settings.particlesShape;
     if (shape === 'random') shape = randomShape();
     const size = 24 + Math.random() * 32;
-    const color = pickColor();
+    const color = pickColor(index);
     return {
         x: Math.random() * particlesState.W,
         y: Math.random() * particlesState.H,
@@ -127,13 +128,14 @@ function syncParticleSprites() {
     const list = particlesState.list;
 
     while (list.length > target) list.pop();
-    while (list.length < target) list.push(createParticle());
+    while (list.length < target) list.push(createParticle(list.length));
 
-    for (const p of list) {
+    for (let i = 0; i < list.length; i++) {
+        const p = list[i];
         let shape = state.settings.particlesShape;
         if (shape === 'random') shape = p.shape || randomShape();
         p.shape = shape;
-        p.sprite = buildSprite(shape, p.size, pickColor());
+        p.sprite = buildSprite(shape, p.size, pickColor(i));
     }
 }
 
@@ -166,17 +168,17 @@ function particlesLoop() {
     particlesState.animId = requestAnimationFrame(particlesLoop);
 }
 
-export function particlesStart() {
+function particlesStart() {
     if (!particlesState.canvas || !particlesState.ctx) return;
     particlesStop();
     particlesResize();
     particlesState.list = [];
     const count = clamp(state.settings.particlesCount | 0, 1, 100);
-    for (let i = 0; i < count; i++) particlesState.list.push(createParticle());
+    for (let i = 0; i < count; i++) particlesState.list.push(createParticle(i));
     particlesLoop();
 }
 
-export function particlesStop() {
+function particlesStop() {
     if (particlesState.animId) cancelAnimationFrame(particlesState.animId);
     particlesState.animId = null;
     if (particlesState.ctx) {
@@ -200,8 +202,6 @@ export function particlesInit() {
     });
 }
 
-/* ---------- градиент ---------- */
-
 function gradientApplyAngle(angle) {
     const grad = document.querySelector('.bg-gradient');
     if (!grad) return;
@@ -209,17 +209,15 @@ function gradientApplyAngle(angle) {
     grad.style.background = `linear-gradient(${angle}deg, ${s.gradientColor1}, ${s.gradientColor2})`;
 }
 
-/* Скорость: 50% → полный цикл 30 с. Полный цикл = from → to → from.
-   Так что halfCycle (from → to) = 15 с при 50%. */
 function gradientLoop(ts) {
     if (!gradientLastTs) gradientLastTs = ts;
     const dt = Math.min(0.1, (ts - gradientLastTs) / 1000);
     gradientLastTs = ts;
 
     const s = state.settings;
-    const from = Math.min(s.gradientAngleFrom, s.gradientAngleTo);
-    const to = Math.max(s.gradientAngleFrom, s.gradientAngleTo);
-    const range = Math.max(1, to - from);
+    const from = clamp(s.gradientAngleFrom, 0, 360);
+    const to = Math.max(from + 1, clamp(s.gradientAngleTo, 0, 360));
+    const range = to - from;
     const speed = clamp(s.gradientSpeed || 50, 1, 100);
     const halfCycleSec = 15 * (50 / speed);
     const degPerSec = range / halfCycleSec;
@@ -248,8 +246,6 @@ function stopGradientAnimation() {
         gradientRaf = null;
     }
 }
-
-/* ---------- общий рендер ---------- */
 
 export function applyBackground() {
     const bgOrbs = document.querySelector('.bg-orbs');

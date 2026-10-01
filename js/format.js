@@ -13,7 +13,7 @@ export function formatTime(seconds) {
     return `${s}с`;
 }
 
-export function formatMinutesPretty(totalMin) {
+function formatMinutesPretty(totalMin) {
     totalMin = Math.max(0, Math.round(totalMin));
     if (totalMin < 60) return `${totalMin} мин`;
     const h = Math.floor(totalMin / 60);
@@ -24,7 +24,6 @@ export function formatMinutesPretty(totalMin) {
 export function formatProgressDetail(event) {
     if (!event || !event.total || event.total < 60) return '';
     const totalMin = Math.max(1, Math.round(event.total / 60));
-    if (event.mode === 'upcoming') return 'до начала';
     const elapsedMin = clamp(Math.floor(event.elapsed / 60), 0, totalMin);
     return `${formatMinutesPretty(elapsedMin)} из ${formatMinutesPretty(totalMin)}`;
 }
@@ -34,7 +33,7 @@ export function heartsFillFraction(progress, type, mode) {
     return type === 'lesson' ? (1 - progress) * 10 : progress * 10;
 }
 
-export function heartSvgMarkup(value, bounce, idx) {
+function heartSvgMarkup(value, bounce, idx) {
     const clip = `inset(0 ${(1 - value) * 100}% 0 0)`;
     return `<svg class="heart-icon${bounce ? ' bouncing' : ''}" style="--i:${idx}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path class="heart-outline" d="${HEART_PATH}" />
@@ -50,27 +49,29 @@ export function buildHeartsHtml(filledFraction, bounce) {
     return html;
 }
 
-export function clockDigitHtml(digit) {
+function clockDigitHtml(digit) {
     return `<span class="clock-digit"><span class="clock-digit-layer">${digit}</span></span>`;
+}
+
+function clockDigitsHtml(str) {
+    let html = '';
+    for (const ch of String(str)) html += clockDigitHtml(ch);
+    return html;
 }
 
 export function buildClockHtml(remaining) {
     const h = Math.floor(remaining / 3600);
     const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
-    const showH = h > 0;
-    const hs = pad2(h);
-    const ms = pad2(m);
-    const ss = pad2(s);
     return `
-        <div class="status-clock ${showH ? '' : 'no-hours'}">
+        <div class="status-clock${h > 0 ? '' : ' no-hours'}">
             <div class="clock-part-h">
-                <span class="clock-segment" data-unit="h">${clockDigitHtml(hs[0])}${clockDigitHtml(hs[1])}</span>
+                <span class="clock-segment" data-unit="h">${clockDigitsHtml(pad2(h))}</span>
                 <span class="clock-sep">|</span>
             </div>
-            <span class="clock-segment" data-unit="m">${clockDigitHtml(ms[0])}${clockDigitHtml(ms[1])}</span>
+            <span class="clock-segment" data-unit="m">${clockDigitsHtml(pad2(m))}</span>
             <span class="clock-sep">|</span>
-            <span class="clock-segment" data-unit="s">${clockDigitHtml(ss[0])}${clockDigitHtml(ss[1])}</span>
+            <span class="clock-segment" data-unit="s">${clockDigitsHtml(pad2(s))}</span>
         </div>
     `;
 }
@@ -80,7 +81,15 @@ function rollClockDigit(digitEl, newVal) {
     digitEl.querySelectorAll('.clock-digit-exit').forEach(el => el.remove());
     const layers = digitEl.querySelectorAll('.clock-digit-layer');
     const cur = layers[layers.length - 1];
-    if (!cur || cur.textContent === newVal) return;
+    if (!cur) {
+
+        const fresh = document.createElement('span');
+        fresh.className = 'clock-digit-layer';
+        fresh.textContent = newVal;
+        digitEl.appendChild(fresh);
+        return;
+    }
+    if (cur.textContent === newVal) return;
     cur.classList.add('clock-digit-exit');
     const next = document.createElement('span');
     next.className = 'clock-digit-layer clock-digit-enter';
@@ -92,10 +101,15 @@ function rollClockDigit(digitEl, newVal) {
 function updateClockSegment(seg, newValue) {
     if (!seg) return;
     const str = pad2(newValue);
-    const digits = seg.querySelectorAll('.clock-digit');
-    if (digits.length < 2) return;
-    rollClockDigit(digits[0], str[0]);
-    rollClockDigit(digits[1], str[1]);
+    const digits = Array.from(seg.querySelectorAll('.clock-digit'));
+    while (digits.length > str.length) digits.pop().remove();
+    while (digits.length < str.length) {
+        const el = document.createElement('span');
+        el.className = 'clock-digit';
+        seg.appendChild(el);
+        digits.push(el);
+    }
+    digits.forEach((el, i) => rollClockDigit(el, str[i]));
 }
 
 export function updateClockNumbers(remaining) {

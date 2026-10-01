@@ -43,6 +43,8 @@ function dayDistanceLabel(day, now) {
 export function renderStatus() {
     const home = document.querySelector('#home');
     if (!home) return;
+
+    if (!state.schedule) return;
     const now = new Date();
     const event = getNextEvent(now, state.selectedDay);
 
@@ -80,9 +82,17 @@ export function renderStatus() {
     const bounce = state.settings.heartAnimation === 'bounce';
     const detail = event.mode === 'upcoming' ? '' : formatProgressDetail(event);
 
+    const detailSuffixHtml = detail
+        ? `<span class="status-detail-suffix"> · ${escapeHtml(detail)}</span>`
+        : '';
+    const detailInlineHtml = detail
+        ? `<span class="status-detail-inline">· ${escapeHtml(detail)}</span>`
+        : '';
+
     const safeSubject = escapeHtml(event.subject);
     const safeLabel = escapeHtml(event.label);
-    const key = `${state.settings.timerStyle}|${event.type}|${event.mode}|${event.subject}|${event.day}|${event.index}|${title}|${bounce}|${detail}`;
+
+    const key = `${state.settings.timerStyle}|${event.type}|${event.mode}|${event.subject}|${event.day}|${event.index}|${title}|${bounce}`;
 
     if (home.dataset.key !== key) {
         let timerHtml;
@@ -94,6 +104,7 @@ export function renderStatus() {
                 <div class="status-bar">
                     <div class="status-bar-top">
                         <span class="status-bar-time">${timeStr}</span>
+                        <span class="status-bar-label">${safeLabel}</span>
                     </div>
                     <div class="status-bar-track">
                         <div class="status-bar-fill" style="width: ${progress * 100}%; background: ${fillColor};"></div>
@@ -105,12 +116,12 @@ export function renderStatus() {
                 <div class="status-hearts">
                     <div class="status-hearts-time">${timeStr}</div>
                     <div class="hearts-row">${buildHeartsHtml(filled, bounce)}</div>
-                    <div class="status-hearts-label">${safeLabel}${detail ? ` · ${escapeHtml(detail)}` : ''}</div>
+                    <div class="status-hearts-label">${safeLabel}${detailSuffixHtml}</div>
                 </div>`;
         } else if (style === 'clock') {
             timerHtml = `
                 ${buildClockHtml(event.remaining)}
-                <div class="status-clock-label">${safeLabel}${detail ? ` · ${escapeHtml(detail)}` : ''}</div>`;
+                <div class="status-clock-label">${safeLabel}${detailSuffixHtml}</div>`;
         } else {
             const radius = 52;
             const circumference = 2 * Math.PI * radius;
@@ -137,9 +148,7 @@ export function renderStatus() {
             <div class="status-ring-subject">
                 ${iconHtml}
                 <span>${safeSubject}</span>
-                ${detail && style !== 'hearts' && style !== 'clock'
-                    ? `<span class="status-detail-inline">· ${escapeHtml(detail)}</span>`
-                    : ''}
+                ${detailInlineHtml}
             </div>`;
         home.dataset.key = key;
 
@@ -150,6 +159,11 @@ export function renderStatus() {
     } else {
         const timeEl = home.querySelector('.status-ring-time, .status-bar-time, .status-hearts-time');
         if (timeEl) timeEl.textContent = timeStr;
+
+        const suffix = home.querySelector('.status-detail-suffix');
+        if (suffix) suffix.textContent = detail ? ` · ${detail}` : '';
+        const inline = home.querySelector('.status-detail-inline');
+        if (inline) inline.textContent = detail ? `· ${detail}` : '';
 
         const style = state.settings.timerStyle;
         if (style === 'ring') {

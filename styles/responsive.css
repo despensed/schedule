@@ -47,8 +47,8 @@
     .status-ring-label { max-width: 78px; }
     .heart-icon { width: 22px; height: 22px; }
     .subject-icon {
-        width: 16px !important;
-        height: 16px !important;
+        width: 16px;
+        height: 16px;
         min-width: 16px;
         min-height: 16px;
         max-width: 16px;

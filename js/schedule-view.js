@@ -1,28 +1,21 @@
 import { state } from './state.js';
 import { DAYS_EN, DAYS_RU } from './constants.js';
 import { escapeHtml, hasSubject, $ } from './utils.js';
-import { getBellsForDay, getLessonsForDay } from './schedule.js';
+import { getBellsForDay, getLessonsForDay, getBellLabel } from './schedule.js';
 import { getSubjectIcon } from './icons.js';
 
-function getLessonStatus(day, index, bells) {
+function getLessonStatus(day, bell) {
     const now = new Date();
-    const today = DAYS_EN[now.getDay()];
-    if (day !== today) return 'normal';
-    const bell = bells[index];
-    if (!bell) return 'normal';
-    const sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    if (day !== DAYS_EN[now.getDay()]) return 'normal';
     const [sh, sm] = bell.start.split(':').map(Number);
     const [eh, em] = bell.end.split(':').map(Number);
-    const startTotal = sh * 3600 + sm * 60;
-    const endTotal = eh * 3600 + em * 60;
-    if (sec > endTotal) return 'past';
-    if (sec >= startTotal) return 'current';
+    const sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    if (sec > eh * 3600 + em * 60) return 'past';
+    if (sec >= sh * 3600 + sm * 60) return 'current';
     return 'normal';
 }
 
 export function renderSchedule(day) {
-    if (!state.schedule) return;
-
     document.querySelectorAll('nav ul li a').forEach(a => {
         a.classList.remove('active', 'today');
         const isActive = a.dataset.day === day;
@@ -33,6 +26,8 @@ export function renderSchedule(day) {
         else a.removeAttribute('aria-current');
     });
 
+    if (!state.schedule) return;
+
     const bells = getBellsForDay(day);
     const lessons = getLessonsForDay(day);
 
@@ -40,11 +35,11 @@ export function renderSchedule(day) {
     lessons.forEach((subject, index) => {
         const bell = bells[index];
         if (!bell || !hasSubject(subject)) return;
-        const status = getLessonStatus(day, index, bells);
+        const status = getLessonStatus(day, bell);
         const statusClass = status === 'normal' ? '' : ` class="${status}"`;
         listHtml += `
             <li${statusClass}>
-                <span class="lesson-num">${bell.lesson} урок</span>
+                <span class="lesson-num">${escapeHtml(getBellLabel(index))}</span>
                 <span class="lesson-time">${escapeHtml(bell.start)} – ${escapeHtml(bell.end)}</span>
                 <span class="lesson-subject">
                     ${getSubjectIcon(subject)}
