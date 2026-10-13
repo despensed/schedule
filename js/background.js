@@ -14,6 +14,17 @@ const particlesState = {
 
 let currentBgMode = null;
 let lastSpriteSig = '';
+let lastShapeMode = null;
+let spriteSyncTimer = 0;
+
+/*
+ * Предел размытия для спрайта. Ползунок в настройках допускает 100,
+ * но при blur 100 спрайт раздувается примерно до 1008x1008 пикселей,
+ * и 100 таких частиц съедают больше 400 МБ. Визуально разница между
+ * 32 и 100 на частицах такого размера незаметна, поэтому рендерим
+ * мягче, а ползунок оставляем как есть.
+ */
+const MAX_SPRITE_BLUR = 32;
 
 let gradientRaf = null;
 let gradientLastTs = 0;
@@ -32,6 +43,7 @@ function spriteSignature() {
 function particlesResize() {
     if (!particlesState.canvas) return;
 
+    const prevDpr = particlesState.dpr;
     particlesState.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const prevW = particlesState.W;
     const prevH = particlesState.H;
@@ -47,12 +59,20 @@ function particlesResize() {
     }
 
     if (prevW > 0 && prevH > 0 && particlesState.list.length) {
+        // Масштабируем только по ширине. На телефоне скрытие адресной
+        // строки меняет одну лишь высоту, и пропорциональный пересчёт
+        // разъезжал частицы при каждом скролле.
         const sx = particlesState.W / prevW;
-        const sy = particlesState.H / prevH;
         for (const p of particlesState.list) {
             p.x *= sx;
-            p.y *= sy;
+            p.y = clamp(p.y, -p.size, particlesState.H + p.size);
         }
+    }
+
+    // Спрайты печатают dpr в момент создания, поэтому после переноса
+    // окна между мониторами или смены зума их нужно перерисовать.
+    if (prevDpr !== particlesState.dpr && particlesState.list.length) {
+        syncParticleSprites();
     }
 }
 
@@ -68,9 +88,9 @@ function pickColor(index) {
 }
 
 function buildSprite(shape, size, color) {
-    const blurPx = Math.max(0, state.settings.particlesBlur | 0);
+    const blurPx = Math.min(MAX_SPRITE_BLUR, Math.max(0, state.settings.particlesBlur | 0));
     const dpr = particlesState.dpr;
-    const pad = blurPx * 3 + 8;
+    const pad = blurPx * 2 + 8;
     const dim = size + pad * 2;
 
     const cv = document.createElement('canvas');
@@ -130,13 +150,33 @@ function syncParticleSprites() {
     while (list.length > target) list.pop();
     while (list.length < target) list.push(createParticle(list.length));
 
+    // «Случайно» перемешивает формы только при включении режима,
+    // иначе смена количества или цвета тасовала бы их заново.
+    const mode = state.settings.particlesShape;
+    const reshuffle = mode === 'random' && mode !== lastShapeMode;
+    lastShapeMode = mode;
+
     for (let i = 0; i < list.length; i++) {
         const p = list[i];
-        let shape = state.settings.particlesShape;
-        if (shape === 'random') shape = p.shape || randomShape();
+        let shape = mode;
+        if (mode === 'random') shape = reshuffle ? randomShape() : (p.shape || randomShape());
         p.shape = shape;
         p.sprite = buildSprite(shape, p.size, pickColor(i));
     }
+}
+
+/**
+ * Пересборка спрайтов откладывается: ползунки размытия и количества
+ * дёргаются на каждый кадр перетаскивания, а спрайт на 100 частицах
+ * строится заметно дороже обычного кадра.
+ */
+function scheduleSpriteSync() {
+    clearTimeout(spriteSyncTimer);
+    spriteSyncTimer = setTimeout(() => {
+        spriteSyncTimer = 0;
+        lastSpriteSig = spriteSignature();
+        syncParticleSprites();
+    }, 120);
 }
 
 function drawParticle(p) {
@@ -181,6 +221,10 @@ function particlesStart() {
 function particlesStop() {
     if (particlesState.animId) cancelAnimationFrame(particlesState.animId);
     particlesState.animId = null;
+    // Отложенная пересборка спрайтов не должна сработать после ухода
+    // из режима частиц.
+    clearTimeout(spriteSyncTimer);
+    spriteSyncTimer = 0;
     if (particlesState.ctx) {
         particlesState.ctx.clearRect(0, 0, particlesState.W, particlesState.H);
     }
@@ -268,11 +312,7 @@ export function applyBackground() {
         } else if (mode === '1color' && bgSolid) {
             bgSolid.style.background = state.settings.solidColor;
         } else if (mode === 'particles') {
-            const sig = spriteSignature();
-            if (sig !== lastSpriteSig) {
-                lastSpriteSig = sig;
-                syncParticleSprites();
-            }
+            if (spriteSignature() !== lastSpriteSig) scheduleSpriteSync();
         }
         return;
     }
@@ -304,6 +344,7 @@ export function applyBackground() {
             bgPart.style.display = 'block';
             particlesStart();
             lastSpriteSig = spriteSignature();
+            lastShapeMode = state.settings.particlesShape;
         }
     }
 

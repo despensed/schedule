@@ -62,7 +62,9 @@ function initSwipe() {
     let moved = false;
 
     document.addEventListener('touchstart', e => {
-        if (e.target.closest('.settings-panel, .settings-overlay')) return;
+        // #confirm-overlay — сосед панели, а не потомок, поэтому ищем
+        // его отдельно: иначе свайп по диалогу переключал день.
+        if (e.target.closest('.settings-panel, .settings-overlay, .confirm-overlay')) return;
         if (e.touches.length !== 1) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
@@ -108,6 +110,9 @@ function initKeyboard() {
         }
         if (e.target instanceof Element && e.target.matches('input, textarea, select')) return;
         if (isModalOpen()) return;
+        // Ctrl/Cmd/Alt + стрелка — это история браузера и переключение
+        // вкладок, день здесь переключать не нужно.
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
         if (e.key === 'ArrowLeft') {
             const idx = DAYS_ORDER.indexOf(state.selectedDay);
             if (idx > 0) selectDay(DAYS_ORDER[idx - 1], true);

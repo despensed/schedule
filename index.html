@@ -62,6 +62,12 @@
             var root = document.documentElement;
             var s = root.style;
 
+            // Нативные элементы (полосы прокрутки, дорожки ползунков,
+            // диалог выбора цвета) берут схему из color-scheme,
+            // поэтому синхронизируем её с темой приложения.
+            var effective = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            s.colorScheme = effective;
+
             if (theme === 'custom' && isHex(parsed.customThemeColor)) {
                 root.setAttribute('data-theme', parsed.customBaseTheme === 'dark' ? 'dark' : 'light');
                 var rgb = hexToRgb(parsed.customThemeColor);

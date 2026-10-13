@@ -19,6 +19,16 @@ const GRAD_ANGLE_MIN = 0;
 const GRAD_ANGLE_MAX = 360;
 const GRAD_SPEED_MIN = 1;
 const GRAD_SPEED_MAX = 100;
+const PARTICLES_COUNT_MIN = 1;
+const PARTICLES_COUNT_MAX = 100;
+const PARTICLES_BLUR_MIN = 0;
+const PARTICLES_BLUR_MAX = 100;
+const MAX_PARTICLES_COLORS = 20;
+
+function clampInt(value, fallback, lo, hi) {
+    const n = parseInt(value, 10);
+    return clamp(Number.isFinite(n) ? n : fallback, lo, hi);
+}
 
 function setActiveSegment(containerId, attr, value) {
     const container = $(containerId);
@@ -129,9 +139,11 @@ export function loadSettings() {
     s.heartOutlineWidth = clamp(s.heartOutlineWidth, HEART_OUTLINE_MIN, HEART_OUTLINE_MAX);
 
     s.gradientRotate = !!s.gradientRotate;
-    s.gradientAngle = clamp(parseInt(s.gradientAngle, 10) || 135, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
+    // Ноль — валидное значение ползунка наклона, поэтому fallback
+    // через `|| 135` здесь был неправ: 0° превращался в 135°.
+    s.gradientAngle = clampInt(s.gradientAngle, DEFAULT_SETTINGS.gradientAngle, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
     [s.gradientAngleFrom, s.gradientAngleTo] = normalizeDualAngle(s.gradientAngleFrom, s.gradientAngleTo);
-    s.gradientSpeed = clamp(parseInt(s.gradientSpeed, 10) || 50, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
+    s.gradientSpeed = clampInt(s.gradientSpeed, DEFAULT_SETTINGS.gradientSpeed, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
 
     if (!Array.isArray(s.orbsColors) || s.orbsColors.length !== 3) {
         s.orbsColors = DEFAULT_SETTINGS.orbsColors.slice();
@@ -142,11 +154,23 @@ export function loadSettings() {
     if (!Array.isArray(s.particlesColors) || !s.particlesColors.length) {
         s.particlesColors = DEFAULT_SETTINGS.particlesColors.slice();
     } else {
-        s.particlesColors = s.particlesColors.map(c => sanitizeHex(c, '#6366f1')).slice(0, 20);
+        s.particlesColors = s.particlesColors
+            .map(c => sanitizeHex(c, '#6366f1'))
+            .slice(0, MAX_PARTICLES_COLORS);
     }
 
-    if (typeof s.particlesCount !== 'number' || !isFinite(s.particlesCount)) s.particlesCount = 5;
-    if (typeof s.particlesBlur !== 'number' || !isFinite(s.particlesBlur)) s.particlesBlur = 0;
+    s.particlesCount = clampInt(
+        typeof s.particlesCount === 'number' ? s.particlesCount : DEFAULT_SETTINGS.particlesCount,
+        DEFAULT_SETTINGS.particlesCount,
+        PARTICLES_COUNT_MIN,
+        PARTICLES_COUNT_MAX
+    );
+    s.particlesBlur = clampInt(
+        typeof s.particlesBlur === 'number' ? s.particlesBlur : DEFAULT_SETTINGS.particlesBlur,
+        DEFAULT_SETTINGS.particlesBlur,
+        PARTICLES_BLUR_MIN,
+        PARTICLES_BLUR_MAX
+    );
     if (typeof s.heartOutlineCustom !== 'boolean') s.heartOutlineCustom = false;
 
     if (!s.heartOutlineCustom) s.heartOutlineColor = s.lessonColor;
@@ -223,6 +247,12 @@ export function applySettings() {
 
     const root = document.documentElement;
     const st = root.style;
+
+    // Нативные полосы прокрутки, дорожки ползунков и диалог выбора
+    // цвета берут схему из color-scheme: без неё они остаются
+    // светлыми на тёмной теме (и наоборот).
+    const effectiveTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    st.colorScheme = effectiveTheme;
 
     root.setAttribute('data-glow', s.glowIntensity > 0 ? 'on' : 'off');
     st.setProperty('--glow-blur', s.glowIntensity + 'px');
@@ -320,6 +350,13 @@ export function applySettings() {
 
     renderMultiColorList('orbs-colors', s.orbsColors, false);
     renderMultiColorList('particles-colors', s.particlesColors, true);
+
+    const addBtn = $('particles-color-add');
+    if (addBtn) {
+        addBtn.disabled = s.particlesColors.length >= MAX_PARTICLES_COLORS;
+        addBtn.style.opacity = addBtn.disabled ? '.5' : '';
+        addBtn.style.cursor = addBtn.disabled ? 'default' : '';
+    }
 
     applyBackground();
 }
@@ -673,6 +710,9 @@ export function initSettingsUI() {
     const addColor = $('particles-color-add');
     if (addColor) {
         addColor.addEventListener('click', () => {
+            // Лимит держим и здесь, иначе лишние цвета молча пропадали
+            // бы при следующей загрузке настроек.
+            if (state.settings.particlesColors.length >= MAX_PARTICLES_COLORS) return;
             const last = state.settings.particlesColors[state.settings.particlesColors.length - 1] || '#6366f1';
             state.settings.particlesColors.push(last);
             applySettings();
