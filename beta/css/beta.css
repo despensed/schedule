@@ -1,0 +1,467 @@
+/*
+ * BETA-визуал расписания.
+ * Подключается всегда, но активируется только при data-ui="beta"
+ * (настройка «Вид расписания → Новый»).
+ * Все правила scoped через [data-ui="beta"], чтобы не влиять на классический вид.
+ */
+
+/* ---------- переключение оболочки ---------- */
+
+[data-ui="beta"] header nav { display: none; }
+[data-ui="beta"] #schedule-view { display: none; }
+[data-ui="beta"] main { max-width: 1060px; }
+
+/* ---------- главный блок о текущем дне ---------- */
+
+[data-ui="beta"] #home {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    padding: 34px 30px 30px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+[data-ui="beta"] #home::before {
+    content: '';
+    position: absolute;
+    top: -55%;
+    left: -10%;
+    width: 70%;
+    height: 150%;
+    background: var(--event-color);
+    opacity: .13;
+    filter: blur(70px);
+    pointer-events: none;
+}
+
+[data-ui="beta"] #home > * { position: relative; }
+
+[data-ui="beta"] .section-title {
+    font-size: .72rem;
+    letter-spacing: .16em;
+    margin-bottom: 14px;
+}
+
+[data-ui="beta"] #home .status-ring-container,
+[data-ui="beta"] #home .status-ring-svg { width: 200px; height: 200px; }
+[data-ui="beta"] #home .status-ring-time { font-size: 2.1rem; }
+[data-ui="beta"] #home .status-ring-label { max-width: 118px; font-size: .7rem; }
+
+[data-ui="beta"] #home .status-bar { max-width: 520px; margin-top: 14px; }
+[data-ui="beta"] #home .status-bar-track { height: 14px; }
+[data-ui="beta"] #home .status-bar-time { font-size: 2.4rem; }
+[data-ui="beta"] #home .status-bar-label { font-size: .82rem; }
+
+[data-ui="beta"] #home .status-hearts-time,
+[data-ui="beta"] #home .status-clock { font-size: 2.6rem; }
+
+[data-ui="beta"] .status-ring-subject {
+    font-size: 1.2rem;
+    margin-top: 16px;
+    gap: 10px;
+}
+[data-ui="beta"] .subject-icon {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+}
+[data-ui="beta"] .status-detail-inline { font-size: .82em; }
+[data-ui="beta"] .status-ring-subject span { color: var(--text-muted); font-weight: 600; }
+
+/* ---------- заголовок секции ---------- */
+
+.beta-section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 2px 0 16px;
+    padding: 0 6px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.beta-section-title span {
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: none;
+    color: var(--text-muted);
+    opacity: .75;
+}
+
+/* ---------- сетка карточек дней ---------- */
+
+/* Отступы и gap заложены с запасом под постоянный наклон карточек:
+   при ширине карточки ~510px наклон в 4° съедает по ~18px с каждой
+   стороны, поэтому горизонтальный зазор должен быть шире 36px.
+
+   grid-auto-rows: 1fr выравнивает все ряды по высоте самой высокой
+   карточки — с разным числом уроков иначе ряд «пляшет». */
+.beta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 26px 40px;
+    align-items: stretch;
+    padding: 6px 4px 0;
+    margin-bottom: 22px;
+}
+
+.beta-day {
+    position: relative;
+    border-radius: 22px;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+@media (hover: hover) {
+    .beta-day:hover {
+        z-index: 2;
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    }
+}
+
+.beta-day.is-today {
+    border-color: var(--accent);
+    box-shadow: var(--shadow), 0 0 0 1px var(--accent);
+    z-index: 1;
+}
+.beta-day.is-today::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -25%;
+    width: 55%;
+    height: 160%;
+    background: var(--accent);
+    opacity: .09;
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+/* ---------- шапка карточки ---------- */
+
+.beta-day__head {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+.beta-day__head:hover { background: var(--surface-2); }
+.beta-day__head:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.beta-day__badge {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: .82rem;
+    letter-spacing: -.01em;
+    color: var(--text);
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+.beta-day.is-today .beta-day__badge {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+}
+
+.beta-day__text { flex: 1; min-width: 0; }
+
+.beta-day__name {
+    display: block;
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: -.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.beta-day__meta {
+    display: block;
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.beta-day__tag {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+}
+
+.beta-day__chevron {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-muted);
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.beta-day.is-open .beta-day__chevron { transform: rotate(180deg); }
+
+/* ---------- раскрывающееся тело ---------- */
+
+.beta-day__body {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition:
+        grid-template-rows .3s cubic-bezier(.4, 0, .2, 1),
+        visibility 0s linear .3s;
+}
+.beta-day.is-open .beta-day__body {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition:
+        grid-template-rows .3s cubic-bezier(.4, 0, .2, 1),
+        visibility 0s;
+}
+.beta-day__inner { overflow: hidden; min-height: 0; }
+
+.beta-day__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 14px 16px;
+}
+
+.beta-day__empty {
+    padding: 4px 18px 20px;
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* ---------- строки уроков ---------- */
+
+.beta-lesson {
+    display: grid;
+    grid-template-columns: 26px 92px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 13px;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    transition: opacity .3s ease, background-color .3s ease, border-color .3s ease;
+}
+
+.beta-lesson__num {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: .72rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+}
+
+.beta-lesson__time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.beta-lesson__subject {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    text-align: right;
+    font-size: .88rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+}
+.beta-lesson__subject > span { overflow-wrap: anywhere; }
+
+/* Иконка держится по первой строке при переносе длинного предмета. */
+.beta-lesson__subject .subject-icon { margin-top: .1em; }
+
+.beta-lesson .subject-icon {
+    width: 17px;
+    height: 17px;
+    min-width: 17px;
+    min-height: 17px;
+    max-width: 17px;
+    max-height: 17px;
+}
+
+.beta-lesson.is-past { opacity: .38; }
+
+.beta-lesson.is-current {
+    background: var(--surface-strong);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+.beta-lesson.is-current .beta-lesson__num {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+}
+
+/* ---------- выкатывание и постоянный наклон ---------- */
+/*
+ * Выезд работает только при data-animate="1" на <html>: флаг ставится
+ * на первой отрисовке и снимается через 1.6 с, иначе карточки
+ * переигрывали бы анимацию каждые 15 секунд.
+ *
+ * Карточка выкатывается с бока с сильным наклоном и останавливается
+ * на постоянном случайном --card-rot. Используется fill-mode: backwards,
+ * поэтому после анимации снова применяются обычные стили карточки —
+ * вместе с наклоном и hover-подъёмом.
+ */
+
+@keyframes beta-fade-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.beta-day {
+    transform: rotate(var(--card-rot, 0deg));
+}
+
+@media (hover: hover) {
+    .beta-day:hover {
+        transform: rotate(var(--card-rot, 0deg)) translateY(-4px);
+    }
+}
+
+[data-ui="beta"][data-animate="1"] #home {
+    animation: card-rise-in .55s cubic-bezier(.22, .9, .28, 1) backwards;
+}
+
+[data-ui="beta"][data-animate="1"] .beta-section-title {
+    animation: beta-fade-in .5s ease backwards;
+    animation-delay: 60ms;
+}
+
+[data-ui="beta"][data-animate="1"] .beta-day {
+    transform-origin: 50% 50%;
+    animation: card-slide-in .72s cubic-bezier(.16, .84, .26, 1) backwards;
+    animation-delay: var(--card-delay, 0ms);
+}
+
+/* ---------- адаптив ---------- */
+
+@media (max-width: 600px) {
+    [data-ui="beta"] main { max-width: 100%; }
+
+    /*
+     * На узких экранах пять карточек в один ряд не влезают, поэтому
+     * сетка превращается в горизонтальную карусель:
+     *   scroll-snap-type      — карточка «прилипает» после броска;
+     *   scroll-snap-align     — выравнивание по центру;
+     *   scroll-behavior       — плавная доводка при программной прокрутке;
+     *   overscroll-behavior-x — страница не «подхватывает» свайп по краю;
+     *   padding по бокам      — запас под наклон карточек на краях ленты.
+     */
+    .beta-grid {
+        display: flex;
+        grid-auto-rows: auto;
+        gap: 18px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding: 10px 10px 22px;
+        margin-bottom: 8px;
+        scrollbar-width: none;
+    }
+    .beta-grid::-webkit-scrollbar { display: none; }
+
+    .beta-day {
+        flex: 0 0 min(78vw, 330px);
+        scroll-snap-align: center;
+    }
+
+    /* первая карточка не должна упираться в левый край ленты */
+    .beta-day:first-child { scroll-snap-align: start; }
+
+    [data-ui="beta"] #home { padding: 26px 18px 22px; border-radius: 22px; }
+    [data-ui="beta"] #home .status-ring-container,
+    [data-ui="beta"] #home .status-ring-svg { width: 164px; height: 164px; }
+    [data-ui="beta"] #home .status-ring-time { font-size: 1.7rem; }
+    [data-ui="beta"] #home .status-ring-label { max-width: 92px; font-size: .66rem; }
+    [data-ui="beta"] #home .status-bar-time { font-size: 1.9rem; }
+    [data-ui="beta"] #home .status-hearts-time,
+    [data-ui="beta"] #home .status-clock { font-size: 2rem; }
+    [data-ui="beta"] .status-ring-subject { font-size: 1.02rem; }
+    .beta-day__head { padding: 14px 14px; }
+    .beta-day__list { padding: 4px 10px 14px; }
+    .beta-lesson { grid-template-columns: 26px 1fr; gap: 4px 10px; padding: 10px 11px; }
+    .beta-lesson__num { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+    .beta-lesson__time { grid-column: 2; grid-row: 1; }
+    .beta-lesson__subject { grid-column: 2; grid-row: 2; justify-content: flex-start; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .beta-day,
+    .beta-day__body,
+    .beta-day__chevron,
+    .beta-lesson { transition: none; }
+
+    [data-ui="beta"][data-animate="1"] #home,
+    [data-ui="beta"][data-animate="1"] .beta-section-title,
+    [data-ui="beta"][data-animate="1"] .beta-day,
+    [data-ui="beta"][data-animate="1"] #schedule-view {
+        animation: none;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .beta-day {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: var(--surface-solid);
+    }
+}
