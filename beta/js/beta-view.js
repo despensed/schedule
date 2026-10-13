@@ -126,6 +126,7 @@ function shellHtml() {
 const DECK_MQ = window.matchMedia('(max-width: 600px)');
 
 let scroller = null;
+let scrollBoundTo = null;
 let scrollFrame = 0;
 let deckCentered = false;
 
@@ -136,17 +137,19 @@ function isDeck() {
 /**
  * Помечает карточку, оказавшуюся ближе всех к центру ленты.
  * Остальные в колоде остаются приглушёнными по бокам.
+ *
+ * Считаем по раскладке (offsetLeft/scrollLeft), а не по
+ * getBoundingClientRect: во время въезда карточки ещё сдвинуты
+ * трансформацией на ±280px, и главной назначалась не та.
  */
 function syncActiveCard() {
     if (!scroller) return;
-    const gridRect = scroller.getBoundingClientRect();
-    const mid = gridRect.left + scroller.clientWidth / 2;
+    const mid = scroller.scrollLeft + scroller.clientWidth / 2;
 
     let best = null;
     let bestDist = Infinity;
     scroller.querySelectorAll('.beta-day').forEach(card => {
-        const r = card.getBoundingClientRect();
-        const d = Math.abs(r.left + r.width / 2 - mid);
+        const d = Math.abs(card.offsetLeft + card.offsetWidth / 2 - mid);
         if (d < bestDist) {
             bestDist = d;
             best = card;
@@ -207,12 +210,32 @@ function focusTodayCard(force) {
     });
 }
 
+/**
+ * Событие scroll не всплывает, поэтому слушатель вешается прямо на
+ * ленту: делегирование на контейнер его не ловило, и после свайпа
+ * главная карточка не менялась.
+ */
+function bindScrollerScroll() {
+    if (!scroller || scrollBoundTo === scroller) return;
+    scrollBoundTo = scroller;
+    scroller.addEventListener('scroll', scheduleActiveSync, { passive: true });
+}
+
 export function renderDayCards() {
     const app = document.getElementById('beta-app');
     if (!app) return;
+
+    // Перерисовка пересоздаёт карточки и обнуляет scrollLeft: на
+    // телефоне это каждые 15 секунд выбрасывало ленту обратно на
+    // понедельник, и выбранный день «терялся».
+    const keepLeft = scroller ? scroller.scrollLeft : 0;
     app.innerHTML = shellHtml();
     scroller = document.getElementById('beta-grid');
-    // Перерисовка раз в 15 секунд не должна утаскивать ленту назад.
+    bindScrollerScroll();
+    if (keepLeft > 0) scroller.scrollLeft = keepLeft;
+
+    // Первый показ открывает ленту на сегодняшнем дне; перерисовка
+    // пользователя назад не утаскивает.
     focusTodayCard(false);
     syncActiveCard();
 }
@@ -241,9 +264,8 @@ export function initDayCards() {
         head.setAttribute('aria-expanded', String(open));
     });
 
-    app.addEventListener('scroll', e => {
-        if (e.target === scroller) scheduleActiveSync();
-    }, { passive: true });
+    // Слушатель прокрутки вешается в bindScrollerScroll(): событие
+    // scroll не всплывает до контейнера.
 
     const onDeckChange = () => {
         if (isDeck()) focusTodayCard(true);

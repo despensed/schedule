@@ -427,18 +427,25 @@
     .beta-grid::-webkit-scrollbar { display: none; }
 
     .beta-day {
-        flex: 0 0 88%;
+        /* 82% оставляет ~35px видимого края с каждой стороны:
+           этого хватает, чтобы соседнюю карточку было видно и можно
+           было по ней попасть пальцем. */
+        flex: 0 0 82%;
         scroll-snap-align: center;
-        opacity: .34;
-        transform: scale(.95);
+        opacity: .62;
+        transform: scale(.965);
         transition: opacity .25s ease, transform .25s ease, box-shadow .25s ease;
     }
 
     .beta-day.is-current {
         opacity: 1;
         transform: scale(1);
-        box-shadow: var(--shadow), 0 8px 28px rgba(15, 23, 42, .12);
+        z-index: 2;
+        box-shadow: var(--shadow), 0 8px 28px rgba(15, 23, 42, .16);
     }
+
+    /* Отклик на нажатие: соседняя карточка должна «зацепиться». */
+    .beta-day:active { transform: scale(.93); }
 
     /* Крайние карточки прижимаются к краям — так до них можно доскроллить. */
     .beta-day:first-child { scroll-snap-align: start; }
