@@ -8,15 +8,14 @@ import { renderSchedule } from './schedule-view.js';
 import { initNavigation, pickInitialDay, startStatusInterval } from './navigation.js';
 
 /**
- * Рандомизирует сторону и наклон въезда для карточки дня.
+ * Рандомизирует сторону въезда для карточки дня.
  * Значения задаются один раз и переживают последующие перерисовки,
  * потому что лежат на самом элементе, а не в его содержимом.
  */
 function prepareCardEntrance(el) {
     if (!el) return;
     const side = Math.random() < 0.5 ? -1 : 1;
-    el.style.setProperty('--card-from-x', side * (42 + Math.random() * 44) + 'px');
-    el.style.setProperty('--card-rot', ((Math.random() * 2 - 1) * 4).toFixed(2) + 'deg');
+    el.style.setProperty('--card-from-x', side * (48 + Math.random() * 56) + 'px');
 }
 
 async function init() {

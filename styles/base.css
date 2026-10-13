@@ -88,19 +88,18 @@ input[type="color"]:focus-visible {
  *
  * Параметры приходят переменными:
  *   --card-from-x   — смещение по X (выезд сбоку)
- *   --card-from-rot — наклон в начале выезда
- *   --card-rot      — наклон в конце выезда
+ *   --card-from-rot — наклон в начале выезда, если он нужен
  *   --card-delay    — задержка, чтобы карточки въезжали по очереди
  */
 
 @keyframes card-slide-in {
     from {
         opacity: 0;
-        transform: translate3d(var(--card-from-x, 0px), 0, 0) rotate(var(--card-from-rot, 0deg));
+        transform: translate3d(var(--card-from-x, 0px), 18px, 0) rotate(var(--card-from-rot, 0deg));
     }
     to {
         opacity: 1;
-        transform: translate3d(0, 0, 0) rotate(var(--card-rot, 0deg));
+        transform: none;
     }
 }
 

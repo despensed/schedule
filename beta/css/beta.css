@@ -96,19 +96,14 @@
 
 /* ---------- сетка карточек дней ---------- */
 
-/* Отступы и gap заложены с запасом под постоянный наклон карточек:
-   при ширине карточки ~510px наклон в 4° съедает по ~18px с каждой
-   стороны, поэтому горизонтальный зазор должен быть шире 36px.
-
-   grid-auto-rows: 1fr выравнивает все ряды по высоте самой высокой
+/* grid-auto-rows: 1fr выравнивает все ряды по высоте самой высокой
    карточки — с разным числом уроков иначе ряд «пляшет». */
 .beta-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     grid-auto-rows: 1fr;
-    gap: 26px 40px;
+    gap: 18px;
     align-items: stretch;
-    padding: 6px 4px 0;
     margin-bottom: 22px;
 }
 
@@ -226,6 +221,7 @@
     background: var(--surface-2);
     border: 1px solid var(--border);
 }
+/* Подпись «Сегодня» убрали: день и так помечен заливкой бейджа и рамкой. */
 
 .beta-day__chevron {
     flex-shrink: 0;
@@ -354,19 +350,14 @@
  * на первой отрисовке и снимается через 1.6 с, иначе карточки
  * переигрывали бы анимацию каждые 15 секунд.
  *
- * Карточка выкатывается с бока с сильным наклоном и останавливается
- * на постоянном случайном --card-rot. Используется fill-mode: backwards,
- * поэтому после анимации снова применяются обычные стили карточки —
- * вместе с наклоном и hover-подъёмом.
+ * Карточка выкатывается с бока и встаёт ровно. Используется
+ * fill-mode: backwards, поэтому после анимации снова применяются
+ * обычные стили карточки.
  */
 
 @keyframes beta-fade-in {
     from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: none; }
-}
-
-.beta-day {
-    transform: rotate(var(--card-rot, 0deg));
 }
 
 /*
@@ -378,9 +369,7 @@
 .beta-day:not(.is-open) { align-self: start; }
 
 @media (hover: hover) {
-    .beta-day:hover {
-        transform: rotate(var(--card-rot, 0deg)) translateY(-4px);
-    }
+    .beta-day:hover { transform: translateY(-3px); }
 }
 
 /* Подсветка при наведении должна быть доступна и с клавиатуры:
@@ -399,7 +388,6 @@
 }
 
 [data-ui="beta"][data-animate="1"] .beta-day {
-    transform-origin: 50% 50%;
     animation: card-slide-in .72s cubic-bezier(.16, .84, .26, 1) backwards;
     animation-delay: var(--card-delay, 0ms);
 }
@@ -410,36 +398,61 @@
     [data-ui="beta"] main { max-width: 100%; }
 
     /*
-     * На узких экранах пять карточек в один ряд не влезают, поэтому
-     * сетка превращается в горизонтальную карусель:
-     *   scroll-snap-type      — карточка «прилипает» после броска;
-     *   scroll-snap-align     — выравнивание по центру;
-     *   scroll-behavior       — плавная доводка при программной прокрутке;
-     *   overscroll-behavior-x — страница не «подхватывает» свайп по краю;
-     *   padding по бокам      — запас под наклон карточек на краях ленты.
+     * Колода: видна одна главная карточка, по бокам — края соседних.
+     * Соседей можно тапнуть, и выбранная встанет в центр
+     * (логика в beta-view.js), остальные остаются приглушёнными.
+     *
+     *   scroll-snap-type: mandatory — после броска встаёт ровно одна;
+     *   flex-basis 86%          — по краям остаётся ~40px для тапа;
+     *   overscroll-behavior-x   — страница не «подхватывает» свайп;
+     *   is-current              — метку ставит JS по центру ленты.
      */
     .beta-grid {
+        position: relative;
         display: flex;
         grid-auto-rows: auto;
-        gap: 18px;
+        gap: 12px;
         overflow-x: auto;
         overscroll-behavior-x: contain;
-        scroll-snap-type: x proximity;
+        scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
-        padding: 10px 10px 22px;
-        margin-bottom: 8px;
+        /* Боковые поля нужны не только для вида, но и для снапа:
+           без них последнюю карточку невозможно доцентрировать —
+           снап тянет ленту обратно. */
+        padding: 4px 8% 18px;
+        margin: 0 -12px 6px;
         scrollbar-width: none;
     }
     .beta-grid::-webkit-scrollbar { display: none; }
 
     .beta-day {
-        flex: 0 0 min(78vw, 330px);
+        flex: 0 0 88%;
         scroll-snap-align: center;
+        opacity: .34;
+        transform: scale(.95);
+        transition: opacity .25s ease, transform .25s ease, box-shadow .25s ease;
     }
 
-    /* первая карточка не должна упираться в левый край ленты */
+    .beta-day.is-current {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: var(--shadow), 0 8px 28px rgba(15, 23, 42, .12);
+    }
+
+    /* Крайние карточки прижимаются к краям — так до них можно доскроллить. */
     .beta-day:first-child { scroll-snap-align: start; }
+    .beta-day:last-child { scroll-snap-align: end; }
+
+    /* Подсказка, что по краям есть что потянуть. */
+    .beta-section-title::after {
+        content: 'листайте вбок';
+        margin-left: auto;
+        font-size: .66rem;
+        letter-spacing: .04em;
+        text-transform: none;
+        opacity: .6;
+    }
 
     [data-ui="beta"] #home { padding: 26px 18px 22px; border-radius: 22px; }
     [data-ui="beta"] #home .status-ring-container,

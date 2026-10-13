@@ -18,17 +18,15 @@ const collapsed = new Set();
 /**
  * Стабильные на первый запуск параметры въезда.
  *
- * --card-from-x    — сторона и амплитуда выезда с бока
- * --card-from-rot  — наклон в начале выезда (раскручивается при остановке)
- * --card-rot       — наклон, который остаётся после остановки
- * --card-delay     — задержка, чтобы карточки въезжали каскадом
+ * --card-from-x — сторона и амплитуда выезда с бока
+ * --card-delay  — задержка, чтобы карточки въезжали каскадом
+ *
+ * Рандомного наклона больше нет: карточки стоят ровно, как и задумано.
  */
 const entrance = new Map();
 
-const TILT_MAX = 4;
-const SPIN_MAX = 13;
 const ROLL_X_MIN = 120;
-const ROLL_X_MAX = 260;
+const ROLL_X_MAX = 280;
 
 function entranceVars(index) {
     let v = entrance.get(index);
@@ -36,14 +34,10 @@ function entranceVars(index) {
 
     const side = Math.random() < 0.5 ? -1 : 1;
     const x = side * (ROLL_X_MIN + Math.random() * (ROLL_X_MAX - ROLL_X_MIN));
-    const tilt = (Math.random() * 2 - 1) * TILT_MAX;
-    const spin = tilt + side * (5 + Math.random() * (SPIN_MAX - 5));
     const delay = 110 + index * 70;
 
     v = [
         `--card-from-x:${x.toFixed(1)}px`,
-        `--card-from-rot:${spin.toFixed(2)}deg`,
-        `--card-rot:${tilt.toFixed(2)}deg`,
         `--card-delay:${delay}ms`
     ].join(';');
     entrance.set(index, v);
@@ -108,7 +102,6 @@ function dayCardHtml(day, index) {
                     <span class="beta-day__name">${escapeHtml(DAYS_RU[day] || '')}</span>
                     <span class="beta-day__meta">${escapeHtml(meta)}</span>
                 </span>
-                ${isToday ? '<span class="beta-day__tag">Сегодня</span>' : ''}
                 <span class="beta-day__chevron" aria-hidden="true">▾</span>
             </button>
             <div class="beta-day__body" id="beta-body-${day}">
@@ -129,10 +122,99 @@ function shellHtml() {
         </div>`;
 }
 
+/** Ниже этой ширины карточки превращаются в «колоду» с одной главной. */
+const DECK_MQ = window.matchMedia('(max-width: 600px)');
+
+let scroller = null;
+let scrollFrame = 0;
+let deckCentered = false;
+
+function isDeck() {
+    return DECK_MQ.matches;
+}
+
+/**
+ * Помечает карточку, оказавшуюся ближе всех к центру ленты.
+ * Остальные в колоде остаются приглушёнными по бокам.
+ */
+function syncActiveCard() {
+    if (!scroller) return;
+    const gridRect = scroller.getBoundingClientRect();
+    const mid = gridRect.left + scroller.clientWidth / 2;
+
+    let best = null;
+    let bestDist = Infinity;
+    scroller.querySelectorAll('.beta-day').forEach(card => {
+        const r = card.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < bestDist) {
+            bestDist = d;
+            best = card;
+        }
+    });
+
+    scroller.querySelectorAll('.beta-day').forEach(card => {
+        card.classList.toggle('is-current', card === best);
+    });
+}
+
+function scheduleActiveSync() {
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        syncActiveCard();
+    });
+}
+
+/**
+ * Доводит карточку в центр ленты плавной прокруткой.
+ * Считает по offsetLeft, а не по getBoundingClientRect: во время
+ * въезда карточка ещё сдвинута трансформацией и дельту сбило бы.
+ */
+function centerCard(card) {
+    if (!scroller) return;
+    const target = card.offsetLeft - (scroller.clientWidth - card.offsetWidth) / 2;
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    const left = Math.max(0, Math.min(target, max));
+    scroller.scrollTo({
+        left,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+}
+
+/** На узком экране лента открывается на сегодняшнем дне, не на первом. */
+function focusTodayCard(force) {
+    if (!scroller || !isDeck()) return;
+    if (deckCentered && !force) return;
+
+    const today = scroller.querySelector('.beta-day.is-today') || scroller.querySelector('.beta-day');
+    if (!today) return;
+
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    const target = Math.max(0, Math.min(
+        today.offsetLeft - (scroller.clientWidth - today.offsetWidth) / 2,
+        max
+    ));
+
+    // Лента ещё не измеряема (например, CSS применился после первого
+    // рендера) — тогда прокрутка бессмысленна, ждём следующего resize.
+    if (target > 0 && max <= 0) return;
+
+    deckCentered = true;
+    scroller.scrollTo({
+        left: target,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+}
+
 export function renderDayCards() {
     const app = document.getElementById('beta-app');
     if (!app) return;
     app.innerHTML = shellHtml();
+    scroller = document.getElementById('beta-grid');
+    // Перерисовка раз в 15 секунд не должна утаскивать ленту назад.
+    focusTodayCard(false);
+    syncActiveCard();
 }
 
 export function initDayCards() {
@@ -145,10 +227,34 @@ export function initDayCards() {
         if (!head || !app.contains(head)) return;
         const card = head.closest('.beta-day');
         if (!card) return;
+
+        // В колоде тап по боковой карточке выбирает её, а не раскрывает.
+        if (isDeck() && !card.classList.contains('is-current')) {
+            centerCard(card);
+            return;
+        }
+
         const day = card.dataset.day;
         const open = card.classList.toggle('is-open');
         if (open) collapsed.delete(day);
         else collapsed.add(day);
         head.setAttribute('aria-expanded', String(open));
+    });
+
+    app.addEventListener('scroll', e => {
+        if (e.target === scroller) scheduleActiveSync();
+    }, { passive: true });
+
+    const onDeckChange = () => {
+        if (isDeck()) focusTodayCard(true);
+        syncActiveCard();
+    };
+    if (DECK_MQ.addEventListener) DECK_MQ.addEventListener('change', onDeckChange);
+    else if (DECK_MQ.addListener) DECK_MQ.addListener(onDeckChange);
+
+    // Поворот экрана и поздно подключённые стили: переоцениваем ленту.
+    window.addEventListener('resize', () => {
+        focusTodayCard(false);
+        syncActiveCard();
     });
 }
