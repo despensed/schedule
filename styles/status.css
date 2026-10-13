@@ -33,8 +33,14 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     to   { opacity: 1; transform: scale(1); }
 }
 
+/* Приглушение «будущего события» должно работать для всех четырёх
+   стилей таймера, иначе карточки отличаются яркостью. */
 #home.event-upcoming .ring-fg,
-#home.event-upcoming .status-bar-fill { opacity: 0.42; }
+#home.event-upcoming .status-bar-fill,
+#home.event-upcoming .status-clock,
+#home.event-upcoming .hearts-row { opacity: .42; }
+.status-clock,
+.hearts-row { transition: opacity .3s ease; }
 
 :root[data-glow="on"] #home[class*="event-"] .ring-fg,
 :root[data-glow="on"] #home[class*="event-"] .status-bar-fill,
@@ -175,7 +181,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 .heart-icon .heart-fill {
     fill: var(--event-color, var(--lesson-color));
     stroke: none;
-    transition: fill 0.35s ease;
+    transition: fill 0.35s ease, clip-path 0.5s linear;
 }
 
 @keyframes heart-bounce {

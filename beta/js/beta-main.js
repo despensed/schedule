@@ -67,6 +67,23 @@ export async function initBetaUI() {
     }
     initDayCards();
 
+    // В классике заголовок возвращает на сегодняшний день, но
+    // навигация там инициализируется вместе с ней. В BETA навигации
+    // нет, поэтому заголовок просто возвращает к началу расписания.
+    const title = document.getElementById('header-title');
+    if (title && !title.dataset.betaBound) {
+        title.dataset.betaBound = '1';
+        title.addEventListener('click', () => {
+            const head = document.querySelector('.beta-day__head');
+            if (!head) return;
+            head.scrollIntoView({
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                block: 'start'
+            });
+            head.focus({ preventScroll: true });
+        });
+    }
+
     try {
         state.schedule = await loadSchedule();
         state.tempSchedule = await loadTempSchedule();

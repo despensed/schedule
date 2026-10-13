@@ -28,9 +28,12 @@ export function formatProgressDetail(event) {
     return `${formatMinutesPretty(elapsedMin)} из ${formatMinutesPretty(totalMin)}`;
 }
 
-export function heartsFillFraction(progress, type, mode) {
+export function heartsFillFraction(progress, mode) {
     if (mode === 'upcoming') return 10;
-    return type === 'lesson' ? (1 - progress) * 10 : progress * 10;
+    // Заполняется так же, как полоса и кольцо: раньше сердечки
+    // расходовались на уроке и наполнялись на перемене — в одном
+    // экране два таймера означали противоположный прогресс.
+    return clamp(progress, 0, 1) * 10;
 }
 
 function heartSvgMarkup(value, bounce, idx) {

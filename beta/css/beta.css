@@ -369,10 +369,24 @@
     transform: rotate(var(--card-rot, 0deg));
 }
 
+/*
+ * Свёрнутая карточка не тянется на всю высоту ряда: иначе после
+ * закрытия остаётся огромный пустой блок. Высоту ряда по-прежнему
+ * задаёт самая высокая открытая карточка, поэтому открытые карточки
+ * остаются на одном уровне.
+ */
+.beta-day:not(.is-open) { align-self: start; }
+
 @media (hover: hover) {
     .beta-day:hover {
         transform: rotate(var(--card-rot, 0deg)) translateY(-4px);
     }
+}
+
+/* Подсветка при наведении должна быть доступна и с клавиатуры:
+   фокус живёт на кнопке внутри шапки карточки. */
+.beta-day:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
 [data-ui="beta"][data-animate="1"] #home {
@@ -464,4 +478,21 @@
         -webkit-backdrop-filter: none;
         background: var(--surface-solid);
     }
+
+    /* Раньше отключалось только свечение карточки: строки уроков и
+       бейджи номеров оставались полупрозрачными. */
+    .beta-lesson,
+    .beta-lesson__num,
+    .beta-day__badge {
+        background: var(--surface-solid);
+    }
+
+    [data-ui="beta"] #home {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: var(--surface-solid);
+    }
+
+    [data-ui="beta"] #home::before,
+    .beta-day.is-today::after { display: none; }
 }

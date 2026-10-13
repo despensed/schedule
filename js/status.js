@@ -12,6 +12,9 @@ import {
     updateClockNumbers
 } from './format.js';
 
+/** Таймер снятия класса .animating — общий, чтобы не наслаивался. */
+let animTimer = 0;
+
 function updateTitle(timeStr) {
     const t = timeStr ? `${timeStr} · Расписание` : 'Расписание';
     if (t !== state.lastTitleStr) {
@@ -111,7 +114,7 @@ export function renderStatus() {
                     </div>
                 </div>`;
         } else if (style === 'hearts') {
-            const filled = heartsFillFraction(progress, event.type, event.mode);
+            const filled = heartsFillFraction(progress, event.mode);
             timerHtml = `
                 <div class="status-hearts">
                     <div class="status-hearts-time">${timeStr}</div>
@@ -155,7 +158,10 @@ export function renderStatus() {
         home.classList.remove('animating');
         void home.offsetWidth;
         home.classList.add('animating');
-        setTimeout(() => home.classList.remove('animating'), 300);
+        // Предыдущий таймер нельзя оставлять: он снял бы класс
+        // посреди новой анимации и карточка «залипла» бы полупрозрачной.
+        clearTimeout(animTimer);
+        animTimer = setTimeout(() => home.classList.remove('animating'), 300);
     } else {
         const timeEl = home.querySelector('.status-ring-time, .status-bar-time, .status-hearts-time');
         if (timeEl) timeEl.textContent = timeStr;
@@ -176,7 +182,7 @@ export function renderStatus() {
             const fill = home.querySelector('.status-bar-fill');
             if (fill) fill.style.width = `${progress * 100}%`;
         } else if (style === 'hearts') {
-            const filled = heartsFillFraction(progress, event.type, event.mode);
+            const filled = heartsFillFraction(progress, event.mode);
             home.querySelectorAll('.heart-icon').forEach((svg, i) => {
                 const v = Math.min(1, Math.max(0, filled - i));
                 const fillPath = svg.querySelector('.heart-fill');
