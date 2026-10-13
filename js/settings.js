@@ -99,6 +99,7 @@ export function loadSettings() {
     if (explicit && VALID.theme.includes(savedTheme)) s.theme = savedTheme;
     else s.theme = prefersDark ? 'dark' : 'light';
 
+    s.uiVariant = pickValid(s.uiVariant, VALID.uiVariant, 'classic');
     s.theme = pickValid(s.theme, VALID.theme, 'light');
     s.timerStyle = pickValid(s.timerStyle, VALID.timerStyle, 'bar');
     s.backgroundMode = pickValid(s.backgroundMode, VALID.backgroundMode, 'orbs');
@@ -236,6 +237,7 @@ export function applySettings() {
     if (s.orbsColors[1]) st.setProperty('--orb-2', s.orbsColors[1]);
     if (s.orbsColors[2]) st.setProperty('--orb-3', s.orbsColors[2]);
 
+    setActiveSegment('ui-variant-switch', 'uiVariant', s.uiVariant);
     setActiveSegment('theme-switch', 'themeValue', s.theme);
     setActiveSegment('style-switch', 'style', s.timerStyle);
     setActiveSegment('bg-switch', 'bg', s.backgroundMode);
@@ -393,9 +395,13 @@ export function initSettingsUI() {
     panel.inert = true;
     let releaseTrap = null;
     let savedFocus = null;
+    let overlayHideTimer = 0;
 
     const openPanel = () => {
+        if (panel.classList.contains('open')) return;
         savedFocus = document.activeElement;
+        clearTimeout(overlayHideTimer);
+        overlayHideTimer = 0;
         overlay.hidden = false;
         panel.inert = false;
         panel.classList.add('open');
@@ -406,14 +412,22 @@ export function initSettingsUI() {
     };
 
     const closePanel = () => {
+        if (!panel.classList.contains('open')) return;
         panel.classList.remove('open');
         overlay.classList.remove('open');
         menuBtn.setAttribute('aria-expanded', 'false');
         if (releaseTrap) releaseTrap();
         releaseTrap = null;
         panel.inert = true;
-        setTimeout(() => { overlay.hidden = true; }, 300);
-        if (savedFocus && typeof savedFocus.focus === 'function') savedFocus.focus();
+        clearTimeout(overlayHideTimer);
+        overlayHideTimer = setTimeout(() => {
+            overlayHideTimer = 0;
+            overlay.hidden = true;
+        }, 300);
+        const target = savedFocus && savedFocus !== document.body && typeof savedFocus.focus === 'function'
+            ? savedFocus
+            : menuBtn;
+        target.focus();
         savedFocus = null;
     };
 
@@ -422,6 +436,20 @@ export function initSettingsUI() {
     overlay.addEventListener('click', closePanel);
 
     document.querySelectorAll('.settings-section').forEach(initSectionToggle);
+
+    const uiSwitch = $('ui-variant-switch');
+    if (uiSwitch) {
+        uiSwitch.addEventListener('click', e => {
+            const btn = e.target.closest('.seg-btn');
+            if (!btn) return;
+            const v = btn.dataset.uiVariant;
+            if (!VALID.uiVariant.includes(v) || v === state.settings.uiVariant) return;
+            state.settings.uiVariant = v;
+            saveSettings();
+            closePanel();
+            location.reload();
+        });
+    }
 
     const themeSwitch = $('theme-switch');
     if (themeSwitch) {
@@ -690,7 +718,8 @@ export function initSettingsUI() {
             applySettings();
             saveSettings();
             renderStatus();
-            renderSchedule(state.selectedDay);
+            // В BETA-виде карточка дня не используется — не создаём её зря.
+            if (document.documentElement.dataset.ui !== 'beta') renderSchedule(state.selectedDay);
             closeConfirm();
         });
     }

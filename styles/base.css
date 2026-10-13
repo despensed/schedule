@@ -78,3 +78,62 @@ input[type="color"]:focus-visible {
     outline-offset: 2px;
 }
 .seg-btn.active:focus-visible { outline-color: var(--accent-text); outline-offset: -2px; }
+
+/* ---------- анимация въезда карточек ---------- */
+/*
+ * Общие keyframes для обоих видов. Работают только при
+ * <html data-animate="1">, который ставит markEntrance() из utils.js
+ * на одну загрузку: карточки перерисовываются каждые 15 секунд,
+ * и без снятия флага анимация переигрывалась бы постоянно.
+ *
+ * Параметры приходят переменными:
+ *   --card-from-x   — смещение по X (выезд сбоку)
+ *   --card-from-rot — наклон в начале выезда
+ *   --card-rot      — наклон в конце выезда
+ *   --card-delay    — задержка, чтобы карточки въезжали по очереди
+ */
+
+@keyframes card-slide-in {
+    from {
+        opacity: 0;
+        transform: translate3d(var(--card-from-x, 0px), 0, 0) rotate(var(--card-from-rot, 0deg));
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotate(var(--card-rot, 0deg));
+    }
+}
+
+@keyframes card-rise-in {
+    from {
+        opacity: 0;
+        transform: translate3d(0, -22px, 0) rotate(-1.8deg) scale(.985);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+[data-animate="1"] #home {
+    animation: card-rise-in .5s cubic-bezier(.22, .9, .28, 1) backwards;
+}
+
+[data-animate="1"] #schedule-view {
+    transform-origin: 50% 55%;
+    animation: card-slide-in .58s cubic-bezier(.22, .9, .28, 1) backwards;
+    animation-delay: 110ms;
+}
+
+[data-animate="1"] #offline-badge,
+[data-animate="1"] #temp-badge {
+    animation: card-rise-in .45s cubic-bezier(.22, .9, .28, 1) backwards;
+    animation-delay: 40ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-animate="1"] #home,
+    [data-animate="1"] #schedule-view,
+    [data-animate="1"] #offline-badge,
+    [data-animate="1"] #temp-badge { animation: none; }
+}

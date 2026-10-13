@@ -106,7 +106,7 @@ function validateSchedule(raw, source) {
             throw new Error(`days.${day}: неизвестный bellSchedule «${entry.bellSchedule}»`);
         }
         if (!Array.isArray(entry.lessons)) {
-            throw new Error(`days.${day}: lessons должен быть списком`);
+            throw new Error(`days.${day}: поле lessons должно быть списком`);
         }
         const slots = raw.bellSchedules[entry.bellSchedule].length;
         if (entry.lessons.length > slots) {
@@ -164,7 +164,7 @@ export async function loadSchedule() {
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
                 if (badge) badge.hidden = false;
-                return validateSchedule(JSON.parse(cached), 'кэш');
+                return validateSchedule(JSON.parse(cached), 'кеш');
             }
         } catch (e2) {
             console.warn('Сохранённое расписание не читается:', e2);

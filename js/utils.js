@@ -55,6 +55,20 @@ export function getSchoolDay(n) {
     return DAYS_RU[n] ? n : 'monday';
 }
 
+/**
+ * Включает анимацию въезда карточек один раз на загрузку страницы.
+ *
+ * Флаг ставится на <html data-animate="1"> и снимается через 1.6 с:
+ * карточки перерисовываются каждые 15 секунд, и без снятия флага
+ * анимация переигрывалась бы постоянно.
+ */
+export function markEntrance() {
+    const root = document.documentElement;
+    if (root.dataset.animate) return;
+    root.dataset.animate = '1';
+    setTimeout(() => { delete root.dataset.animate; }, 1600);
+}
+
 const FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function isFocusableVisible(el) {

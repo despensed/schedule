@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { DAYS_EN, DAYS_RU } from './constants.js';
 import { escapeHtml, hasSubject, $ } from './utils.js';
-import { getBellsForDay, getLessonsForDay, getBellLabel } from './schedule.js';
+import { getBellsForDay, getLessonsForDay } from './schedule.js';
 import { getSubjectIcon } from './icons.js';
 
 function getLessonStatus(day, bell) {
@@ -39,7 +39,7 @@ export function renderSchedule(day) {
         const statusClass = status === 'normal' ? '' : ` class="${status}"`;
         listHtml += `
             <li${statusClass}>
-                <span class="lesson-num">${escapeHtml(getBellLabel(index))}</span>
+                <span class="lesson-num">${index + 1}</span>
                 <span class="lesson-time">${escapeHtml(bell.start)} – ${escapeHtml(bell.end)}</span>
                 <span class="lesson-subject">
                     ${getSubjectIcon(subject)}

@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="styles/schedule.css">
     <link rel="stylesheet" href="styles/settings.css">
     <link rel="stylesheet" href="styles/responsive.css">
+    <link rel="stylesheet" href="beta/css/beta.css">
 
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
@@ -154,6 +155,26 @@
         <div class="settings-body">
             <section class="settings-section" data-open="true">
                 <button class="settings-section__header" type="button" aria-expanded="true">
+                    <span>Вид расписания</span>
+                    <span class="settings-section__chevron" aria-hidden="true">›</span>
+                </button>
+                <div class="settings-section__body">
+                    <div class="settings-section__inner">
+                        <div class="setting-group">
+                            <div class="segmented segmented-wrap" id="ui-variant-switch" role="group" aria-label="Вид расписания">
+                                <button data-ui-variant="classic" class="seg-btn" type="button">Классический</button>
+                                <button data-ui-variant="beta" class="seg-btn" type="button">
+                                    Новый<span class="beta-badge">BETA</span>
+                                </button>
+                            </div>
+                            <p class="setting-hint">Новый вид: карточки всех дней недели и блок с информацией о текущем дне.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section" data-open="true">
+                <button class="settings-section__header" type="button" aria-expanded="true">
                     <span>Настройки темы</span>
                     <span class="settings-section__chevron" aria-hidden="true">›</span>
                 </button>
@@ -169,7 +190,7 @@
 
                         <div class="setting-subgroup" id="custom-theme-settings">
                             <div class="setting-group">
-                                <label class="setting-label" for="custom-theme-color">Цвет боксов</label>
+                                <label class="setting-label" for="custom-theme-color">Цвет блоков</label>
                                 <div class="color-row">
                                     <input type="color" id="custom-theme-color" value="#1e1b4b">
                                     <span class="color-value" id="custom-theme-color-value">#1e1b4b</span>
@@ -235,7 +256,7 @@
                                 <div class="color-row">
                                     <input type="color" id="heart-outline-color" value="#6366f1">
                                     <span class="color-value" id="heart-outline-color-value">#6366f1</span>
-                                    <button type="button" id="heart-outline-reset" class="mini-btn" title="Синхронизировать с цветом урока">Авто</button>
+                                    <button type="button" id="heart-outline-reset" class="mini-btn" title="Взять цвет урока">Авто</button>
                                 </div>
                             </div>
                             <div class="setting-group">
@@ -245,7 +266,7 @@
                             <div class="setting-group">
                                 <span class="setting-label">Анимация сердец</span>
                                 <div class="segmented" id="heart-anim-switch" role="group" aria-label="Анимация сердец">
-                                    <button data-heart-anim="none" class="seg-btn" type="button">Выкл</button>
+                                    <button data-heart-anim="none" class="seg-btn" type="button">Выкл.</button>
                                     <button data-heart-anim="bounce" class="seg-btn" type="button">Подпрыгивание</button>
                                 </div>
                             </div>

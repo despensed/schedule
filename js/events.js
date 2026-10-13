@@ -65,7 +65,7 @@ function todayEvent(bells, lessons, currentSeconds) {
                 total: breakEnd - endTotal,
                 elapsed: currentSeconds - endTotal,
                 subject: `Перемена после ${lessonLabel}`,
-                label: 'перемена',
+                label: 'до конца перемены',
                 index: i
             };
         }

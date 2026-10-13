@@ -62,7 +62,7 @@ export function renderStatus() {
         return;
     }
     if (!event) {
-        home.innerHTML = '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Уроков нет · время вне расписания</p>';
+        home.innerHTML = '<h2 class="section-title">Сейчас</h2><p class="status-text-only">Уроков нет — время вне расписания</p>';
         home.dataset.key = 'empty';
         updateTitle('');
         return;

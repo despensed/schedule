@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
 };
 
 export const DEFAULT_SETTINGS = {
+    uiVariant: 'classic',
     theme: 'light',
     customThemeColor: '#1e1b4b',
     customThemeOpacity: 25,
@@ -64,6 +65,7 @@ export function createDefaultSettings() {
 }
 
 export const VALID = {
+    uiVariant: ['classic', 'beta'],
     theme: ['light', 'dark', 'custom'],
     timerStyle: ['bar', 'ring', 'clock', 'hearts'],
     backgroundMode: ['orbs', '1color', 'gradient', 'particles'],
