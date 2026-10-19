@@ -1,19 +1,20 @@
 import { state } from './state.js';
-import { STORAGE_KEYS, DAYS_SHORT, DAYS_ORDER } from './constants.js';
+import { DAYS_SHORT, DAYS_ORDER } from './constants.js';
 import { $, hasSubject } from './utils.js';
+import { getOverrideForDay, listUpcomingOverrides } from './overrides.js';
 
 const SCHEDULE_VERSION = 2;
 
 export function getLessonsForDay(day) {
-    const override = state.tempSchedule?.days?.[day];
-    if (Array.isArray(override)) return override;
+    const override = getOverrideForDay(day);
+    if (override) return override.lessons;
     return state.schedule?.days?.[day]?.lessons || [];
 }
 
 export function getBellsForDay(day) {
-    const entry = state.schedule?.days?.[day];
-    if (!entry) return [];
-    const bells = state.schedule?.bellSchedules?.[entry.bellSchedule];
+    const override = getOverrideForDay(day);
+    const name = override?.bellSchedule || state.schedule?.days?.[day]?.bellSchedule;
+    const bells = name ? state.schedule?.bellSchedules?.[name] : null;
     return Array.isArray(bells) ? bells : [];
 }
 
@@ -35,21 +36,19 @@ export function getBellLabel(index, genitive) {
     return `${n} ${word}`;
 }
 
-function getTempDays() {
-    const days = state.tempSchedule?.days;
-    if (!days) return [];
-    return DAYS_ORDER.filter(d => Array.isArray(days[d]));
-}
-
 export function updateTempBadge() {
     const badge = $('temp-badge');
     if (!badge) return;
-    const days = getTempDays();
-    if (!days.length) {
+    const list = listUpcomingOverrides();
+    if (!list.length) {
         badge.hidden = true;
         return;
     }
-    badge.textContent = `Временное расписание · ${days.map(d => DAYS_SHORT[d]).join(', ')}`;
+    const parts = list.map(({ day, date }) => {
+        const [, m, d] = date.split('-');
+        return `${DAYS_SHORT[day]} ${d}.${m}`;
+    });
+    badge.textContent = `Замены · ${parts.join(', ')}`;
     badge.hidden = false;
 }
 
@@ -121,75 +120,8 @@ function validateSchedule(raw, source) {
     return raw;
 }
 
-function validateTemp(raw) {
-    const source = 'schedule_temp.json';
-    if (!raw || typeof raw !== 'object') throw new Error('ожидался объект');
-    if (raw.version !== SCHEDULE_VERSION) {
-        throw new Error(`версия ${JSON.stringify(raw.version)}, ожидается ${SCHEDULE_VERSION}`);
-    }
-    const days = raw.days;
-    if (!days || typeof days !== 'object' || Array.isArray(days)) throw new Error('нет days');
-
-    const extra = Object.keys(days).filter(d => !DAYS_ORDER.includes(d));
-    if (extra.length) console.warn(`${source}: игнорируются неизвестные дни ${extra.join(', ')}`);
-
-    for (const day of DAYS_ORDER) {
-        const lessons = days[day];
-        if (lessons == null) {
-            days[day] = null;
-            continue;
-        }
-        if (!Array.isArray(lessons)) throw new Error(`days.${day}: ожидался список или null`);
-        days[day] = lessons.map(l => (typeof l === 'string' ? l.trim() : ''));
-        const slots = getBellsForDay(day).length;
-        if (slots && days[day].length > slots) {
-            throw new Error(`days.${day}: уроков ${days[day].length}, а звонков только ${slots}`);
-        }
-    }
-    return { version: SCHEDULE_VERSION, days };
-}
-
 export async function loadSchedule() {
-    const cacheKey = STORAGE_KEYS.SCHEDULE_CACHE;
-    const badge = $('offline-badge');
-    try {
-        const r = await fetch('schedule.json', { cache: 'no-cache' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = validateSchedule(await r.json(), 'schedule.json');
-        try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) {}
-        if (badge) badge.hidden = true;
-        return data;
-    } catch (e) {
-        try {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                if (badge) badge.hidden = false;
-                return validateSchedule(JSON.parse(cached), 'кеш');
-            }
-        } catch (e2) {
-            console.warn('Сохранённое расписание не читается:', e2);
-        }
-        throw e;
-    }
-}
-
-export async function loadTempSchedule() {
-    let r;
-    try {
-        r = await fetch('schedule_temp.json', { cache: 'no-cache' });
-    } catch (e) {
-        console.warn('Временное расписание: сеть недоступна', e);
-        return null;
-    }
-    if (r.status === 404) return null;
-    if (!r.ok) {
-        console.warn(`Временное расписание: HTTP ${r.status}`);
-        return null;
-    }
-    try {
-        return validateTemp(await r.json());
-    } catch (e) {
-        console.warn(`Временное расписание отключено: ${e.message}`, e);
-        return null;
-    }
+    const r = await fetch('schedule.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return validateSchedule(await r.json(), 'schedule.json');
 }

@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { DEFAULT_SETTINGS, createDefaultSettings, VALID, STORAGE_KEYS } from './constants.js';
+import { DEFAULT_SETTINGS, createDefaultSettings, VALID, STORAGE_KEYS, PRESETS } from './constants.js';
 import {
     $, isHexColor, sanitizeHex, pickValid, pickTextColor, clamp, trapFocus
 } from './utils.js';
@@ -24,6 +24,7 @@ const PARTICLES_COUNT_MAX = 100;
 const PARTICLES_BLUR_MIN = 0;
 const PARTICLES_BLUR_MAX = 100;
 const MAX_PARTICLES_COLORS = 20;
+const MAX_CUSTOM_CSS = 50000;
 
 function clampInt(value, fallback, lo, hi) {
     const n = parseInt(value, 10);
@@ -101,6 +102,7 @@ export function loadSettings() {
         saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}') || {};
     } catch (e) {}
 
+    if (saved.designVersion !== createDefaultSettings().designVersion) saved = {};
     const s = { ...createDefaultSettings(), ...saved };
 
     const explicit = localStorage.getItem(STORAGE_KEYS.THEME_EXPLICIT) === '1';
@@ -109,10 +111,10 @@ export function loadSettings() {
     if (explicit && VALID.theme.includes(savedTheme)) s.theme = savedTheme;
     else s.theme = prefersDark ? 'dark' : 'light';
 
-    s.uiVariant = pickValid(s.uiVariant, VALID.uiVariant, 'classic');
     s.theme = pickValid(s.theme, VALID.theme, 'light');
     s.timerStyle = pickValid(s.timerStyle, VALID.timerStyle, 'bar');
-    s.backgroundMode = pickValid(s.backgroundMode, VALID.backgroundMode, 'orbs');
+    s.preset = pickValid(s.preset, VALID.preset, 'blank');
+    s.backgroundMode = pickValid(s.backgroundMode, VALID.backgroundMode, 'plain');
     s.particlesShape = pickValid(s.particlesShape, VALID.particlesShape, 'dot');
     s.heartAnimation = pickValid(s.heartAnimation, VALID.heartAnimation, 'none');
     s.customBaseTheme = pickValid(s.customBaseTheme, VALID.customBaseTheme, prefersDark ? 'dark' : 'light');
@@ -139,8 +141,6 @@ export function loadSettings() {
     s.heartOutlineWidth = clamp(s.heartOutlineWidth, HEART_OUTLINE_MIN, HEART_OUTLINE_MAX);
 
     s.gradientRotate = !!s.gradientRotate;
-    // Ноль — валидное значение ползунка наклона, поэтому fallback
-    // через `|| 135` здесь был неправ: 0° превращался в 135°.
     s.gradientAngle = clampInt(s.gradientAngle, DEFAULT_SETTINGS.gradientAngle, GRAD_ANGLE_MIN, GRAD_ANGLE_MAX);
     [s.gradientAngleFrom, s.gradientAngleTo] = normalizeDualAngle(s.gradientAngleFrom, s.gradientAngleTo);
     s.gradientSpeed = clampInt(s.gradientSpeed, DEFAULT_SETTINGS.gradientSpeed, GRAD_SPEED_MIN, GRAD_SPEED_MAX);
@@ -172,6 +172,10 @@ export function loadSettings() {
         PARTICLES_BLUR_MAX
     );
     if (typeof s.heartOutlineCustom !== 'boolean') s.heartOutlineCustom = false;
+
+    if (typeof s.customThemeColorCustom !== 'boolean') s.customThemeColorCustom = false;
+
+    s.customCss = typeof s.customCss === 'string' ? s.customCss.slice(0, MAX_CUSTOM_CSS) : '';
 
     if (!s.heartOutlineCustom) s.heartOutlineColor = s.lessonColor;
 
@@ -234,23 +238,57 @@ function syncDualAngleInputs(activeKey) {
     }
 }
 
+function renderVariants(s) {
+    const box = $('variant-switch');
+    const vs = PRESETS[s.preset]?.variants || [];
+    const show = s.theme !== 'custom' && vs.length > 1;
+    toggleSubgroup('variant-settings', show);
+    if (!box || !show) return;
+    const key = vs.map(v => v.label).join();
+    if (box.dataset.key !== key) {
+        box.querySelectorAll('.seg-btn').forEach(b => b.remove());
+        box.insertAdjacentHTML('beforeend', vs.map((v, i) =>
+            `<button class="seg-btn" type="button" data-variant="${i}">${v.label}</button>`).join(''));
+        box.dataset.key = key;
+    }
+    const act = vs.findIndex(v => Object.entries(v.set).every(([k, x]) => s[k] === x));
+    box.querySelectorAll('.seg-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === act);
+        b.setAttribute('aria-pressed', String(i === act));
+    });
+}
+
+function applyCustomCss() {
+    let el = document.getElementById('custom-css-style');
+    if (!el) {
+        el = document.createElement('style');
+        el.id = 'custom-css-style';
+        document.head.appendChild(el);
+    }
+    el.textContent = state.settings.customCss || '';
+}
+
 export function applySettings() {
     const s = state.settings;
+    const root = document.documentElement;
+
+    root.setAttribute('data-preset', s.preset);
+    root.setAttribute('data-theme', s.theme === 'custom'
+        ? (s.customBaseTheme === 'dark' ? 'dark' : 'light')
+        : s.theme);
+
+    clearCustomSurfaceVars();
 
     if (s.theme === 'custom') {
-        document.documentElement.setAttribute('data-theme', s.customBaseTheme === 'dark' ? 'dark' : 'light');
+        if (!s.customThemeColorCustom) {
+            const presetSolid = getComputedStyle(root).getPropertyValue('--surface-solid').trim();
+            if (isHexColor(presetSolid)) s.customThemeColor = presetSolid.toLowerCase();
+        }
         applyCustomSurfaceVars(s.customThemeColor, s.customThemeOpacity);
-    } else {
-        clearCustomSurfaceVars();
-        document.documentElement.setAttribute('data-theme', s.theme);
     }
 
-    const root = document.documentElement;
     const st = root.style;
 
-    // Нативные полосы прокрутки, дорожки ползунков и диалог выбора
-    // цвета берут схему из color-scheme: без неё они остаются
-    // светлыми на тёмной теме (и наоборот).
     const effectiveTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     st.colorScheme = effectiveTheme;
 
@@ -267,8 +305,8 @@ export function applySettings() {
     if (s.orbsColors[1]) st.setProperty('--orb-2', s.orbsColors[1]);
     if (s.orbsColors[2]) st.setProperty('--orb-3', s.orbsColors[2]);
 
-    setActiveSegment('ui-variant-switch', 'uiVariant', s.uiVariant);
-    setActiveSegment('theme-switch', 'themeValue', s.theme);
+    setActiveSegment('theme-switch', 'preset', s.theme === 'custom' ? 'custom' : s.preset);
+    renderVariants(s);
     setActiveSegment('style-switch', 'style', s.timerStyle);
     setActiveSegment('bg-switch', 'bg', s.backgroundMode);
     setActiveSegment('particles-shape', 'shape', s.particlesShape);
@@ -358,6 +396,10 @@ export function applySettings() {
         addBtn.style.cursor = addBtn.disabled ? 'default' : '';
     }
 
+    const cssInput = $('custom-css');
+    if (cssInput && cssInput.value !== s.customCss) cssInput.value = s.customCss;
+
+    applyCustomCss();
     applyBackground();
 }
 
@@ -423,44 +465,42 @@ function closeConfirm() {
 }
 
 export function initSettingsUI() {
-    const panel = $('settings-panel');
-    const overlay = $('settings-overlay');
+    const pageMain = $('page-main');
+    const pageSettings = $('page-settings');
+    const flipCard = $('flip-card');
     const menuBtn = $('menu-toggle');
     const closeBtn = $('settings-close');
-    if (!panel || !overlay || !menuBtn) return;
+    if (!pageMain || !pageSettings || !flipCard || !menuBtn) return;
 
-    panel.inert = true;
+    const settingsScroll = $('settings-scroll');
+    pageSettings.inert = true;
     let releaseTrap = null;
     let savedFocus = null;
-    let overlayHideTimer = 0;
+
+    const isOpen = () => document.documentElement.classList.contains('settings-open');
 
     const openPanel = () => {
-        if (panel.classList.contains('open')) return;
+        if (isOpen()) return;
         savedFocus = document.activeElement;
-        clearTimeout(overlayHideTimer);
-        overlayHideTimer = 0;
-        overlay.hidden = false;
-        panel.inert = false;
-        panel.classList.add('open');
-        overlay.classList.add('open');
+        document.documentElement.classList.add('settings-open');
+        pageMain.inert = true;
+        pageSettings.inert = false;
+        if (settingsScroll) settingsScroll.scrollTop = 0;
+        flipCard.classList.add('is-open');
         menuBtn.setAttribute('aria-expanded', 'true');
-        releaseTrap = trapFocus(panel);
+        releaseTrap = trapFocus(pageSettings);
         if (closeBtn) closeBtn.focus();
     };
 
     const closePanel = () => {
-        if (!panel.classList.contains('open')) return;
-        panel.classList.remove('open');
-        overlay.classList.remove('open');
+        if (!isOpen()) return;
+        document.documentElement.classList.remove('settings-open');
+        flipCard.classList.remove('is-open');
+        pageMain.inert = false;
+        pageSettings.inert = true;
         menuBtn.setAttribute('aria-expanded', 'false');
         if (releaseTrap) releaseTrap();
         releaseTrap = null;
-        panel.inert = true;
-        clearTimeout(overlayHideTimer);
-        overlayHideTimer = setTimeout(() => {
-            overlayHideTimer = 0;
-            overlay.hidden = true;
-        }, 300);
         const target = savedFocus && savedFocus !== document.body && typeof savedFocus.focus === 'function'
             ? savedFocus
             : menuBtn;
@@ -470,35 +510,40 @@ export function initSettingsUI() {
 
     menuBtn.addEventListener('click', openPanel);
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
-    overlay.addEventListener('click', closePanel);
 
     document.querySelectorAll('.settings-section').forEach(initSectionToggle);
 
-    const uiSwitch = $('ui-variant-switch');
-    if (uiSwitch) {
-        uiSwitch.addEventListener('click', e => {
-            const btn = e.target.closest('.seg-btn');
-            if (!btn) return;
-            const v = btn.dataset.uiVariant;
-            if (!VALID.uiVariant.includes(v) || v === state.settings.uiVariant) return;
-            state.settings.uiVariant = v;
-            saveSettings();
-            closePanel();
-            location.reload();
-        });
-    }
-
+    const markExplicit = () => { try { localStorage.setItem(STORAGE_KEYS.THEME_EXPLICIT, '1'); } catch (e2) {} };
     const themeSwitch = $('theme-switch');
     if (themeSwitch) {
         themeSwitch.addEventListener('click', e => {
             const btn = e.target.closest('.seg-btn');
             if (!btn) return;
-            const t = btn.dataset.themeValue;
-            if (t === 'custom' && state.settings.theme !== 'custom') {
-                state.settings.customBaseTheme = state.settings.theme === 'dark' ? 'dark' : 'light';
+            const st = state.settings;
+            const id = btn.dataset.preset;
+            const dark = st.theme === 'dark' || (st.theme === 'custom' && st.customBaseTheme === 'dark');
+            if (id === 'custom') {
+                if (st.theme !== 'custom') st.customBaseTheme = dark ? 'dark' : 'light';
+                st.theme = 'custom';
+            } else {
+
+                const vs = PRESETS[id].variants;
+                const v = vs.find(x => x.set.theme === (dark ? 'dark' : 'light')) || vs[0];
+                Object.assign(st, { preset: id }, v.set);
             }
-            state.settings.theme = t;
-            try { localStorage.setItem(STORAGE_KEYS.THEME_EXPLICIT, '1'); } catch (e2) {}
+            markExplicit();
+            applySettings();
+            saveSettings();
+        });
+    }
+    const variantSwitch = $('variant-switch');
+    if (variantSwitch) {
+        variantSwitch.addEventListener('click', e => {
+            const btn = e.target.closest('.seg-btn');
+            const v = btn && PRESETS[state.settings.preset]?.variants[+btn.dataset.variant];
+            if (!v) return;
+            Object.assign(state.settings, v.set);
+            markExplicit();
             applySettings();
             saveSettings();
         });
@@ -509,6 +554,8 @@ export function initSettingsUI() {
         ctc.addEventListener('input', () => {
             if (!isHexColor(ctc.value)) return;
             state.settings.customThemeColor = ctc.value;
+
+            state.settings.customThemeColorCustom = true;
             applySettings();
             saveSettings();
         });
@@ -522,6 +569,33 @@ export function initSettingsUI() {
             const label = $('custom-theme-opacity-value');
             if (label) label.textContent = v;
             applySettings();
+            saveSettings();
+        });
+    }
+
+    const cssInput = $('custom-css');
+    const commitCss = () => {
+        if (cssInput) state.settings.customCss = cssInput.value.slice(0, MAX_CUSTOM_CSS);
+        applyCustomCss();
+        saveSettings();
+    };
+    if (cssInput) {
+        cssInput.value = state.settings.customCss;
+        let cssTimer = 0;
+        cssInput.addEventListener('input', () => {
+            state.settings.customCss = cssInput.value.slice(0, MAX_CUSTOM_CSS);
+            clearTimeout(cssTimer);
+            cssTimer = setTimeout(commitCss, 250);
+        });
+    }
+    const cssApply = $('custom-css-apply');
+    if (cssApply) cssApply.addEventListener('click', commitCss);
+    const cssClear = $('custom-css-clear');
+    if (cssClear) {
+        cssClear.addEventListener('click', () => {
+            if (cssInput) cssInput.value = '';
+            state.settings.customCss = '';
+            applyCustomCss();
             saveSettings();
         });
     }
@@ -710,8 +784,7 @@ export function initSettingsUI() {
     const addColor = $('particles-color-add');
     if (addColor) {
         addColor.addEventListener('click', () => {
-            // Лимит держим и здесь, иначе лишние цвета молча пропадали
-            // бы при следующей загрузке настроек.
+
             if (state.settings.particlesColors.length >= MAX_PARTICLES_COLORS) return;
             const last = state.settings.particlesColors[state.settings.particlesColors.length - 1] || '#6366f1';
             state.settings.particlesColors.push(last);
@@ -758,8 +831,7 @@ export function initSettingsUI() {
             applySettings();
             saveSettings();
             renderStatus();
-            // В BETA-виде карточка дня не используется — не создаём её зря.
-            if (document.documentElement.dataset.ui !== 'beta') renderSchedule(state.selectedDay);
+            renderSchedule(state.selectedDay);
             closeConfirm();
         });
     }

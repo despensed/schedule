@@ -7,7 +7,7 @@ export const state = {
     currentActualDay: null,
     manualDaySelection: false,
     lastTitleStr: '',
-    tickCounter: 0,
+    lastListSig: '',
     statusInterval: null,
     settings: createDefaultSettings()
 };

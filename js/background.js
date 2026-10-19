@@ -17,13 +17,6 @@ let lastSpriteSig = '';
 let lastShapeMode = null;
 let spriteSyncTimer = 0;
 
-/*
- * Предел размытия для спрайта. Ползунок в настройках допускает 100,
- * но при blur 100 спрайт раздувается примерно до 1008x1008 пикселей,
- * и 100 таких частиц съедают больше 400 МБ. Визуально разница между
- * 32 и 100 на частицах такого размера незаметна, поэтому рендерим
- * мягче, а ползунок оставляем как есть.
- */
 const MAX_SPRITE_BLUR = 32;
 
 let gradientRaf = null;
@@ -59,9 +52,7 @@ function particlesResize() {
     }
 
     if (prevW > 0 && prevH > 0 && particlesState.list.length) {
-        // Масштабируем только по ширине. На телефоне скрытие адресной
-        // строки меняет одну лишь высоту, и пропорциональный пересчёт
-        // разъезжал частицы при каждом скролле.
+
         const sx = particlesState.W / prevW;
         for (const p of particlesState.list) {
             p.x *= sx;
@@ -69,8 +60,6 @@ function particlesResize() {
         }
     }
 
-    // Спрайты печатают dpr в момент создания, поэтому после переноса
-    // окна между мониторами или смены зума их нужно перерисовать.
     if (prevDpr !== particlesState.dpr && particlesState.list.length) {
         syncParticleSprites();
     }
@@ -150,8 +139,6 @@ function syncParticleSprites() {
     while (list.length > target) list.pop();
     while (list.length < target) list.push(createParticle(list.length));
 
-    // «Случайно» перемешивает формы только при включении режима,
-    // иначе смена количества или цвета тасовала бы их заново.
     const mode = state.settings.particlesShape;
     const reshuffle = mode === 'random' && mode !== lastShapeMode;
     lastShapeMode = mode;
@@ -165,11 +152,6 @@ function syncParticleSprites() {
     }
 }
 
-/**
- * Пересборка спрайтов откладывается: ползунки размытия и количества
- * дёргаются на каждый кадр перетаскивания, а спрайт на 100 частицах
- * строится заметно дороже обычного кадра.
- */
 function scheduleSpriteSync() {
     clearTimeout(spriteSyncTimer);
     spriteSyncTimer = setTimeout(() => {
@@ -221,8 +203,7 @@ function particlesStart() {
 function particlesStop() {
     if (particlesState.animId) cancelAnimationFrame(particlesState.animId);
     particlesState.animId = null;
-    // Отложенная пересборка спрайтов не должна сработать после ухода
-    // из режима частиц.
+
     clearTimeout(spriteSyncTimer);
     spriteSyncTimer = 0;
     if (particlesState.ctx) {

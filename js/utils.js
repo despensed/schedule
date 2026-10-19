@@ -1,4 +1,4 @@
-import { DAYS_RU } from './constants.js';
+import { DAYS_RU, SCHOOL_TIME_ZONE } from './constants.js';
 
 export const $ = id => document.getElementById(id);
 
@@ -55,13 +55,6 @@ export function getSchoolDay(n) {
     return DAYS_RU[n] ? n : 'monday';
 }
 
-/**
- * Включает анимацию въезда карточек один раз на загрузку страницы.
- *
- * Флаг ставится на <html data-animate="1"> и снимается через 1.6 с:
- * карточки перерисовываются каждые 15 секунд, и без снятия флага
- * анимация переигрывалась бы постоянно.
- */
 export function markEntrance() {
     const root = document.documentElement;
     if (root.dataset.animate) return;
@@ -100,4 +93,21 @@ export function trapFocus(container) {
 
     container.addEventListener('keydown', handler);
     return () => container.removeEventListener('keydown', handler);
+}
+
+let tzFormat = null;
+try {
+    tzFormat = new Intl.DateTimeFormat('en-GB', {
+        timeZone: SCHOOL_TIME_ZONE, hourCycle: 'h23',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric'
+    });
+} catch (e) {  }
+
+export function schoolNow() {
+    const real = new Date();
+    if (!tzFormat) return real;
+    const p = {};
+    for (const { type, value } of tzFormat.formatToParts(real)) p[type] = +value;
+    return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
 }

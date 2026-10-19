@@ -33,8 +33,6 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     to   { opacity: 1; transform: scale(1); }
 }
 
-/* Приглушение «будущего события» должно работать для всех четырёх
-   стилей таймера, иначе карточки отличаются яркостью. */
 #home.event-upcoming .ring-fg,
 #home.event-upcoming .status-bar-fill,
 #home.event-upcoming .status-clock,
@@ -87,7 +85,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     pointer-events: none;
 }
 .status-ring-time {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 1.75rem;
     font-weight: 700;
     color: var(--text);
@@ -116,7 +114,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     gap: 12px;
 }
 .status-bar-time {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 1.7rem;
     font-weight: 700;
     color: var(--text);
@@ -150,7 +148,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     margin-top: 8px;
 }
 .status-hearts-time {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 1.7rem;
     font-weight: 700;
     color: var(--text);
@@ -212,7 +210,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     align-items: center;
     gap: 4px;
     margin: 8px auto 0;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 2.2rem;
     font-weight: 700;
     color: var(--text);
@@ -238,7 +236,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     overflow: hidden;
     text-align: center;
     vertical-align: top;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     line-height: 1;
 }

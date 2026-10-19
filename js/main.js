@@ -1,17 +1,14 @@
 import { state } from './state.js';
 import { DAYS_EN, STORAGE_KEYS } from './constants.js';
-import { markEntrance } from './utils.js';
+import { markEntrance, schoolNow } from './utils.js';
+import { initSliders } from './slider.js';
 import { loadSettings, applySettings, initSettingsUI, saveSettings } from './settings.js';
 import { particlesInit } from './background.js';
-import { loadSchedule, loadTempSchedule, updateTempBadge } from './schedule.js';
+import { loadSchedule, updateTempBadge } from './schedule.js';
+import { fetchOverridesCsv, parseOverrides } from './overrides.js';
 import { renderSchedule } from './schedule-view.js';
 import { initNavigation, pickInitialDay, startStatusInterval } from './navigation.js';
 
-/**
- * Рандомизирует сторону въезда для карточки дня.
- * Значения задаются один раз и переживают последующие перерисовки,
- * потому что лежат на самом элементе, а не в его содержимом.
- */
 function prepareCardEntrance(el) {
     if (!el) return;
     const side = Math.random() < 0.5 ? -1 : 1;
@@ -35,25 +32,22 @@ async function init() {
         });
     }
 
-    state.currentActualDay = DAYS_EN[new Date().getDay()];
-
-    if (state.settings.uiVariant === 'beta') {
-        const { initBetaUI } = await import('../beta/js/beta-main.js');
-        await initBetaUI();
-        return;
-    }
+    state.currentActualDay = DAYS_EN[schoolNow().getDay()];
 
     pickInitialDay();
     initNavigation();
 
     try {
+
+        const overridesCsv = fetchOverridesCsv();
         state.schedule = await loadSchedule();
-        state.tempSchedule = await loadTempSchedule();
+        state.tempSchedule = parseOverrides(await overridesCsv);
         updateTempBadge();
 
         renderSchedule(state.selectedDay);
         prepareCardEntrance(document.getElementById('schedule-view'));
         markEntrance();
+        initSliders();
 
         startStatusInterval();
     } catch (error) {

@@ -1,11 +1,11 @@
 import { state } from './state.js';
 import { DAYS_EN, DAYS_RU } from './constants.js';
-import { escapeHtml, hasSubject, $ } from './utils.js';
+import { escapeHtml, hasSubject, schoolNow, $ } from './utils.js';
 import { getBellsForDay, getLessonsForDay } from './schedule.js';
 import { getSubjectIcon } from './icons.js';
 
 function getLessonStatus(day, bell) {
-    const now = new Date();
+    const now = schoolNow();
     if (day !== DAYS_EN[now.getDay()]) return 'normal';
     const [sh, sm] = bell.start.split(':').map(Number);
     const [eh, em] = bell.end.split(':').map(Number);
@@ -13,6 +13,11 @@ function getLessonStatus(day, bell) {
     if (sec > eh * 3600 + em * 60) return 'past';
     if (sec >= sh * 3600 + sm * 60) return 'current';
     return 'normal';
+}
+
+export function listSignature(day) {
+    const statuses = getBellsForDay(day).map(b => getLessonStatus(day, b));
+    return `${state.currentActualDay}|${day}|${statuses.join(',')}`;
 }
 
 export function renderSchedule(day) {

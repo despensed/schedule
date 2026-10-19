@@ -16,26 +16,30 @@ export const DAYS_SHORT = {
     friday: 'Пт'
 };
 
+export const SCHOOL_TIME_ZONE = 'Asia/Yekaterinburg';
+
 export const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 
 export const STORAGE_KEYS = {
     SETTINGS: 'app-settings',
     THEME: 'theme',
-    THEME_EXPLICIT: 'theme-explicit',
-    SCHEDULE_CACHE: 'schedule-cache-v1'
+    THEME_EXPLICIT: 'theme-explicit'
 };
 
 export const DEFAULT_SETTINGS = {
-    uiVariant: 'classic',
     theme: 'light',
+    preset: 'blank',
     customThemeColor: '#1e1b4b',
+    customThemeColorCustom: false,
     customThemeOpacity: 25,
     customBaseTheme: 'light',
+    customCss: '',
     timerStyle: 'bar',
-    accentColor: '#6366f1',
-    lessonColor: '#6366f1',
-    breakColor: '#f59e0b',
-    backgroundMode: 'orbs',
+    accentColor: '#ff4b1f',
+    lessonColor: '#ff4b1f',
+    breakColor: '#2347ff',
+    backgroundMode: 'plain',
+    designVersion: 2,
     solidColor: '#6366f1',
     orbsColors: ['#a5b4fc', '#f0abfc', '#93c5fd'],
     particlesCount: 5,
@@ -50,7 +54,7 @@ export const DEFAULT_SETTINGS = {
     gradientAngleTo: 210,
     gradientSpeed: 50,
     glowIntensity: 0,
-    heartOutlineColor: '#6366f1',
+    heartOutlineColor: '#ff4b1f',
     heartOutlineCustom: false,
     heartOutlineWidth: 1.5,
     heartAnimation: 'none'
@@ -65,10 +69,10 @@ export function createDefaultSettings() {
 }
 
 export const VALID = {
-    uiVariant: ['classic', 'beta'],
+    preset: ['blank', 'graphite', 'terminal'],
     theme: ['light', 'dark', 'custom'],
     timerStyle: ['bar', 'ring', 'clock', 'hearts'],
-    backgroundMode: ['orbs', '1color', 'gradient', 'particles'],
+    backgroundMode: ['plain', 'orbs', '1color', 'gradient', 'particles'],
     particlesShape: ['dot', 'heart', 'triangle', 'random'],
     heartAnimation: ['none', 'bounce'],
     customBaseTheme: ['light', 'dark']
@@ -118,4 +122,21 @@ export const SUBJECT_ICON_MAP = {
     'индивидуальный проект': 'lightbulb',
     'разговоры о важном': 'message',
     'государственный (башкирский) язык рб': 'languages'
+};
+
+const paint = c => ({ accentColor: c[0], lessonColor: c[0], breakColor: c[1], heartOutlineColor: c[0] });
+
+export const PRESETS = {
+    blank: { label: 'Бланк', variants: [
+        { label: 'Светлая', set: { theme: 'light', ...paint(['#ff4b1f', '#2347ff']) } },
+        { label: 'Тёмная', set: { theme: 'dark', ...paint(['#ff4b1f', '#2347ff']) } }
+    ] },
+    graphite: { label: 'Графит', variants: [
+        { label: 'Светлая', set: { theme: 'light', ...paint(['#26262b', '#8b8b94']) } },
+        { label: 'Тёмная', set: { theme: 'dark', ...paint(['#e9e9ee', '#85858f']) } }
+    ] },
+    terminal: { label: 'Терминал', variants: [
+        { label: 'Зелёный', set: { theme: 'dark', ...paint(['#39ff88', '#00c8ff']) } },
+        { label: 'Янтарь', set: { theme: 'dark', ...paint(['#ffb000', '#ff6a3d']) } }
+    ] }
 };

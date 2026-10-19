@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { DAYS_EN, DAYS_RU, DAYS_ORDER, DAYS_SHORT } from './constants.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, schoolNow } from './utils.js';
 import { getSubjectIcon } from './icons.js';
 import { getNextEvent } from './events.js';
 import {
@@ -12,7 +12,6 @@ import {
     updateClockNumbers
 } from './format.js';
 
-/** Таймер снятия класса .animating — общий, чтобы не наслаивался. */
 let animTimer = 0;
 
 function updateTitle(timeStr) {
@@ -48,7 +47,7 @@ export function renderStatus() {
     if (!home) return;
 
     if (!state.schedule) return;
-    const now = new Date();
+    const now = schoolNow();
     const event = getNextEvent(now, state.selectedDay);
 
     home.classList.toggle('event-lesson', !!event && event.type === 'lesson');
@@ -57,6 +56,14 @@ export function renderStatus() {
 
     const todayName = DAYS_EN[now.getDay()];
     const isOtherDay = event && event.day && event.day !== todayName;
+
+    const sameDay = home.dataset.day === state.selectedDay;
+    home.dataset.day = state.selectedDay;
+    if (!sameDay) {
+
+        clearTimeout(animTimer);
+        home.classList.remove('animating');
+    }
 
     if (event && event.mode === 'empty') {
         home.innerHTML = `<h2 class="section-title">${escapeHtml(DAYS_RU[event.day] || '')}</h2><p class="status-text-only">В этот день уроков нет.</p>`;
@@ -155,13 +162,14 @@ export function renderStatus() {
             </div>`;
         home.dataset.key = key;
 
-        home.classList.remove('animating');
-        void home.offsetWidth;
-        home.classList.add('animating');
-        // Предыдущий таймер нельзя оставлять: он снял бы класс
-        // посреди новой анимации и карточка «залипла» бы полупрозрачной.
-        clearTimeout(animTimer);
-        animTimer = setTimeout(() => home.classList.remove('animating'), 300);
+        if (sameDay) {
+            home.classList.remove('animating');
+            void home.offsetWidth;
+            home.classList.add('animating');
+
+            clearTimeout(animTimer);
+            animTimer = setTimeout(() => home.classList.remove('animating'), 300);
+        }
     } else {
         const timeEl = home.querySelector('.status-ring-time, .status-bar-time, .status-hearts-time');
         if (timeEl) timeEl.textContent = timeStr;
