@@ -1,0 +1,54 @@
+/* Настройки как отдельная страница: вырастает из кнопки меню и сворачивается обратно. */
+.settings-overlay { display: none; }
+.settings-panel {
+    inset: 0; width: 100%; max-width: none; height: 100%;
+    border: 0; box-shadow: none; transform: none; will-change: clip-path;
+    background: var(--bg); overflow-y: auto; overflow-x: hidden;
+    clip-path: inset(var(--o-t, 0px) var(--o-r, 0px) var(--o-b, 0px) var(--o-l, 0px));
+    visibility: hidden;
+    transition: clip-path .55s cubic-bezier(.7, 0, .2, 1), visibility 0s linear .55s;
+}
+.settings-panel.open {
+    clip-path: inset(0 0 0 0); visibility: visible; transform: none;
+    transition: clip-path .55s cubic-bezier(.7, 0, .2, 1), visibility 0s;
+}
+.settings-panel > * { width: 100%; max-width: 560px; margin-inline: auto; box-sizing: border-box; }
+
+.settings-header {
+    flex-direction: row-reverse; justify-content: flex-end; gap: 14px;
+    padding: 20px 16px 8px; background: none; border: 0;
+}
+.settings-header h3 { font-size: clamp(2rem, 10vw, 2.8rem); font-weight: 800; text-transform: uppercase; letter-spacing: -.045em; line-height: .9; }
+.settings-close {
+    width: 44px; height: 44px; flex: none; color: var(--text); background: var(--surface-strong);
+    border: 1.5px solid var(--text); border-radius: 0; box-shadow: var(--shadow);
+}
+.settings-section {
+    margin: 22px 16px 0; background: var(--surface-solid); border: 1.5px solid var(--text);
+    border-radius: 3px; box-shadow: var(--shadow); width: auto;
+}
+.settings-section__header { font: 700 .85rem var(--font-mono); text-transform: uppercase; letter-spacing: .1em; }
+
+/* Страница уходит, пока открываются настройки */
+header, #home, #schedule-view, #temp-badge { transition: transform .5s cubic-bezier(.7, 0, .2, 1), opacity .4s ease; }
+[data-settings="open"] header { transform: translateY(-26px); opacity: 0; }
+[data-settings="open"] #home { transform: translateY(44px) scale(.96); opacity: 0; transition-delay: .04s; }
+[data-settings="open"] #schedule-view { transform: translateY(70px) scale(.95); opacity: 0; transition-delay: .08s; }
+[data-settings="open"] body { overflow: hidden; }
+
+/* Секции въезжают по очереди */
+@keyframes sec-in { from { opacity: 0; transform: translateY(22px); } }
+.settings-panel.open .settings-section { animation: sec-in .5s cubic-bezier(.2, .9, .3, 1) backwards; }
+.settings-panel.open .settings-section:nth-of-type(1) { animation-delay: .28s; }
+.settings-panel.open .settings-section:nth-of-type(2) { animation-delay: .34s; }
+.settings-panel.open .settings-section:nth-of-type(3) { animation-delay: .40s; }
+.settings-panel.open .settings-section:nth-of-type(4) { animation-delay: .46s; }
+.settings-panel.open .settings-section:nth-of-type(n+5) { animation-delay: .52s; }
+@media (prefers-reduced-motion: reduce) {
+    .settings-panel, .settings-panel.open { transition: none; }
+    header, #home, #schedule-view, #temp-badge { transition: none; }
+    .settings-panel.open .settings-section { animation: none; }
+}
+
+/* Закрытая страница не должна «протекать»: у тела секций своя visibility: visible. */
+.settings-panel.is-closed, .settings-panel.is-closed * { visibility: hidden !important; }

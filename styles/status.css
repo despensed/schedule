@@ -33,6 +33,8 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     to   { opacity: 1; transform: scale(1); }
 }
 
+/* Приглушение «будущего события» должно работать для всех четырёх
+   стилей таймера, иначе карточки отличаются яркостью. */
 #home.event-upcoming .ring-fg,
 #home.event-upcoming .status-bar-fill,
 #home.event-upcoming .status-clock,
@@ -85,7 +87,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     pointer-events: none;
 }
 .status-ring-time {
-    font-family: var(--font-mono);
+    font-family: 'JetBrains Mono', monospace;
     font-size: 1.75rem;
     font-weight: 700;
     color: var(--text);
@@ -114,7 +116,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     gap: 12px;
 }
 .status-bar-time {
-    font-family: var(--font-mono);
+    font-family: 'JetBrains Mono', monospace;
     font-size: 1.7rem;
     font-weight: 700;
     color: var(--text);
@@ -148,7 +150,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     margin-top: 8px;
 }
 .status-hearts-time {
-    font-family: var(--font-mono);
+    font-family: 'JetBrains Mono', monospace;
     font-size: 1.7rem;
     font-weight: 700;
     color: var(--text);
@@ -169,28 +171,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     flex-shrink: 0;
     overflow: visible;
 }
-.heart-icon .heart-outline {
-    fill: none;
-    stroke: var(--heart-outline-color);
-    stroke-width: var(--heart-outline-width, 1.5);
-    stroke-linejoin: round;
-    transition: stroke 0.35s ease, stroke-width 0.15s ease;
-}
-.heart-icon .heart-fill {
-    fill: var(--event-color, var(--lesson-color));
-    stroke: none;
-    transition: fill 0.35s ease, clip-path 0.5s linear;
-}
 
-@keyframes heart-bounce {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-6px); }
-}
-.heart-icon.bouncing {
-    animation: heart-bounce 1.4s ease-in-out infinite;
-    animation-delay: calc(var(--i, 0) * 0.08s);
-    will-change: transform;
-}
 .status-hearts-label {
     font-size: 0.78rem;
     color: var(--text-muted);
@@ -210,7 +191,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     align-items: center;
     gap: 4px;
     margin: 8px auto 0;
-    font-family: var(--font-mono);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 2.2rem;
     font-weight: 700;
     color: var(--text);
@@ -236,7 +217,7 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
     overflow: hidden;
     text-align: center;
     vertical-align: top;
-    font-family: var(--font-mono);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     line-height: 1;
 }
@@ -330,3 +311,42 @@ main { max-width: 720px; margin: 0 auto; position: relative; }
 @media (prefers-reduced-transparency: reduce) {
     #home { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface-solid); }
 }
+
+/* Сердечки в пиксельном стиле */
+.hearts-row { flex-wrap: nowrap; gap: 4px; }
+.heart-icon { width: 29px; height: 29px; flex-shrink: 0; overflow: visible; shape-rendering: crispEdges; }
+.hp-out { fill: var(--heart-outline-color); }
+.hp-empty { fill: color-mix(in srgb, var(--text) 14%, transparent); }
+.hp-full { fill: var(--event-color, var(--lesson-color)); transition: fill .35s ease; }
+.hp-hi { fill: rgba(255, 255, 255, .65); }
+.heart-icon[data-s="0"] .hp-full, .heart-icon[data-s="0"] .hp-hi { display: none; }
+.heart-icon[data-s="1"] .hp-full { clip-path: inset(0 45.45% 0 0); }
+@keyframes heart-hop { 0% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.heart-icon.bouncing { animation: heart-hop 1.2s steps(1) infinite; animation-delay: calc(var(--i, 0) * .09s); }
+
+/* Клетки: одна на минуту */
+.cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(15px, 1fr)); gap: 4px; margin-top: 14px; }
+.cell { aspect-ratio: 1; border: 1.5px solid var(--text); transition: background-color .25s ease; }
+.cell.on { background: var(--event-color, var(--lesson-color)); }
+.cell.now { animation: cell-blink 1s steps(1) infinite; }
+@keyframes cell-blink { 50% { background: var(--event-color, var(--lesson-color)); } }
+@media (prefers-reduced-motion: reduce) { .cell.now, .heart-icon.bouncing { animation: none; } }
+
+/* Кольцо → циферблат: 60 делений и стрелка, идущая вместе с уроком */
+.ring-bg { stroke-linecap: butt; stroke-width: 7; opacity: .35; }
+.ring-fg { stroke-linecap: butt; stroke-width: 3; }
+.ring-hand { transform-origin: 60px 60px; transition: transform .9s linear; }
+.ring-hand line { stroke: var(--event-color, var(--lesson-color)); stroke-width: 2.5; stroke-linecap: round; }
+.ring-hand circle { fill: var(--bg); stroke: var(--event-color, var(--lesson-color)); stroke-width: 2.5; }
+@media (prefers-reduced-motion: reduce) { .ring-hand { transition: none; } }
+
+/* Часы → табло: цифры на тёмных плитках с линией сгиба */
+.status-clock { gap: 6px; }
+.clock-digit {
+    margin: 0 1.5px; width: 1.05ch; background: var(--text); color: var(--bg); border-radius: .16em;
+    box-shadow: inset 0 -.1em 0 rgba(0, 0, 0, .3);
+}
+.clock-digit::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: rgba(0, 0, 0, .55); z-index: 2; }
+.clock-digit-layer { color: var(--bg); }
+.clock-segment { color: var(--bg); }
+.clock-sep { color: var(--event-color, var(--lesson-color)); opacity: 1; font-weight: 800; }

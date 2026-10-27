@@ -1,10 +1,7 @@
 @media (max-width: 600px) {
-    .flip-face { padding: 16px 12px 32px; }
-    .flip-face--back { padding: 0; }
-    .settings-scroll { padding: 16px 12px 32px; }
+    body { padding: 16px 12px 32px; }
     .menu-toggle { top: 12px; right: 12px; width: 38px; height: 38px; }
-    .settings-close { top: 12px; right: 12px; width: 38px; height: 38px; }
-    .settings-sheet { min-height: calc(100vh - 48px); min-height: calc(100dvh - 48px); border-radius: 16px; }
+    .settings-panel { width: 92vw; }
 
     header { margin-bottom: 22px; }
     header h1 { margin-bottom: 14px; }

@@ -26,8 +26,6 @@ function selectDay(day, manual) {
     state.manualDaySelection = (manual !== false) && (day !== getSchoolDay(state.currentActualDay));
     writeHash(day);
     renderSchedule(day);
-
-    if (state.schedule) state.lastListSig = listSignature(day);
     renderStatus();
 }
 
@@ -46,9 +44,9 @@ function tick() {
     }
 
     if (state.schedule && !document.hidden) {
-
+        // Список перерисовываем только когда меняется подсветка уроков.
         const sig = listSignature(state.selectedDay);
-        if (sig !== state.lastListSig) {
+        if (sig !== state.lastListSig && !document.querySelector('.note-input')) {
             state.lastListSig = sig;
             renderSchedule(state.selectedDay);
         }
@@ -68,9 +66,9 @@ function initSwipe() {
     let moved = false;
 
     document.addEventListener('touchstart', e => {
-
-        if (document.documentElement.classList.contains('settings-open')) return;
-        if (e.target.closest('.confirm-overlay')) return;
+        // #confirm-overlay — сосед панели, а не потомок, поэтому ищем
+        // его отдельно: иначе свайп по диалогу переключал день.
+        if (e.target.closest('.settings-panel, .settings-overlay, .confirm-overlay')) return;
         if (e.touches.length !== 1) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
@@ -98,7 +96,8 @@ function initSwipe() {
 }
 
 function isModalOpen() {
-    if (document.documentElement.classList.contains('settings-open')) return true;
+    const panel = document.getElementById('settings-panel');
+    if (panel && panel.classList.contains('open')) return true;
     const confirm = document.getElementById('confirm-overlay');
     return !!(confirm && confirm.classList.contains('open'));
 }
@@ -106,7 +105,8 @@ function isModalOpen() {
 function initKeyboard() {
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-            if (document.documentElement.classList.contains('settings-open')) {
+            const panel = document.getElementById('settings-panel');
+            if (panel && panel.classList.contains('open')) {
                 const closeBtn = document.getElementById('settings-close');
                 if (closeBtn) closeBtn.click();
                 return;
@@ -114,40 +114,9 @@ function initKeyboard() {
         }
         if (e.target instanceof Element && e.target.matches('input, textarea, select')) return;
         if (isModalOpen()) return;
+        // Ctrl/Cmd/Alt + стрелка — это история браузера и переключение
+        // вкладок, день здесь переключать не нужно.
         if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-        const page = document.getElementById('page-main');
-        if (page) {
-            const tag = document.activeElement && document.activeElement.tagName;
-            const onControl = tag === 'BUTTON' || tag === 'A';
-            const step = Math.round(page.clientHeight * 0.85);
-            if (e.key === 'PageDown') {
-                e.preventDefault();
-                page.scrollBy(0, step);
-                return;
-            }
-            if (e.key === 'PageUp') {
-                e.preventDefault();
-                page.scrollBy(0, -step);
-                return;
-            }
-            if (e.key === 'Home' && !onControl) {
-                e.preventDefault();
-                page.scrollTo(0, 0);
-                return;
-            }
-            if (e.key === 'End' && !onControl) {
-                e.preventDefault();
-                page.scrollTo(0, page.scrollHeight);
-                return;
-            }
-            if (e.key === ' ' && !onControl) {
-                e.preventDefault();
-                page.scrollBy(0, e.shiftKey ? -step : step);
-                return;
-            }
-        }
-
         if (e.key === 'ArrowLeft') {
             const idx = DAYS_ORDER.indexOf(state.selectedDay);
             if (idx > 0) selectDay(DAYS_ORDER[idx - 1], true);

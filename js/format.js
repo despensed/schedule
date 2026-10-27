@@ -1,5 +1,4 @@
 import { clamp, pad2 } from './utils.js';
-import { HEART_PATH } from './constants.js';
 
 export function formatTime(seconds) {
     if (seconds < 0) seconds = 0;
@@ -30,15 +29,35 @@ export function formatProgressDetail(event) {
 
 export function heartsFillFraction(progress, mode) {
     if (mode === 'upcoming') return 10;
-
+    // Заполняется так же, как полоса и кольцо: раньше сердечки
+    // расходовались на уроке и наполнялись на перемене — в одном
+    // экране два таймера означали противоположный прогресс.
     return clamp(progress, 0, 1) * 10;
 }
 
+// Пиксельное сердце 9×9 в духе Minecraft: заливка, тёмный контур и блик.
+const HEART_ROWS = ['.XX...XX.', 'XXXX.XXXX', 'XXXXXXXXX', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'];
+const HEART_BODY = [];
+HEART_ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === 'X') HEART_BODY.push([x + 1, y + 1]); }));
+const bodySet = new Set(HEART_BODY.map(([x, y]) => `${x},${y}`));
+const HEART_OUTLINE = [];
+for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) {
+    if (bodySet.has(`${x},${y}`)) continue;
+    let near = false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (bodySet.has(`${x + dx},${y + dy}`)) near = true;
+    if (near) HEART_OUTLINE.push([x, y]);
+}
+const px = pts => pts.map(([x, y]) => `M${x} ${y}h1v1h-1z`).join('');
+const HEART_D = { body: px(HEART_BODY), out: px(HEART_OUTLINE), hi: px([[2, 2], [3, 2], [2, 3]]) };
+
+/** 2 — целое сердце, 1 — половинка, 0 — пустое. */
+export function heartState(v) {
+    return v >= 0.999 ? 2 : v >= 0.5 ? 1 : 0;
+}
+
 function heartSvgMarkup(value, bounce, idx) {
-    const clip = `inset(0 ${(1 - value) * 100}% 0 0)`;
-    return `<svg class="heart-icon${bounce ? ' bouncing' : ''}" style="--i:${idx}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path class="heart-outline" d="${HEART_PATH}" />
-        <path class="heart-fill" style="clip-path:${clip};-webkit-clip-path:${clip};" d="${HEART_PATH}" />
+    return `<svg class="heart-icon${bounce ? ' bouncing' : ''}" style="--i:${idx}" data-s="${heartState(value)}" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path class="hp-out" d="${HEART_D.out}"/><path class="hp-empty" d="${HEART_D.body}"/><path class="hp-full" d="${HEART_D.body}"/><path class="hp-hi" d="${HEART_D.hi}"/>
     </svg>`;
 }
 
@@ -48,6 +67,28 @@ export function buildHeartsHtml(filledFraction, bounce) {
         html += heartSvgMarkup(clamp(filledFraction - i, 0, 1), bounce, i);
     }
     return html;
+}
+
+/** «Клетки»: одна клетка на минуту урока или перемены. */
+function cellsInfo(event) {
+    const n = Math.min(90, Math.max(1, Math.round((event.total || 0) / 60) || 40));
+    const done = event.mode === 'upcoming' ? n : Math.min(n, Math.floor((event.elapsed || 0) / 60));
+    return { n, done, live: event.mode !== 'upcoming' };
+}
+
+export function buildCellsHtml(event) {
+    const { n, done, live } = cellsInfo(event);
+    let html = '<div class="cells" aria-hidden="true">';
+    for (let i = 0; i < n; i++) html += `<span class="cell${i < done ? ' on' : ''}${live && i === done ? ' now' : ''}"></span>`;
+    return html + '</div>';
+}
+
+export function updateCells(root, event) {
+    const { done, live } = cellsInfo(event);
+    root.querySelectorAll('.cell').forEach((c, i) => {
+        c.classList.toggle('on', i < done);
+        c.classList.toggle('now', live && i === done);
+    });
 }
 
 function clockDigitHtml(digit) {

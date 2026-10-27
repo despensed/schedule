@@ -66,7 +66,7 @@ nav ul li a.today::after {
 }
 nav ul li a.active.today::after { opacity: 0.95; }
 
-.offline-badge {
+.temp-badge {
     max-width: 720px;
     margin: -8px auto 16px;
     padding: 8px 14px;
@@ -79,5 +79,5 @@ nav ul li a.active.today::after { opacity: 0.95; }
     text-align: center;
     width: fit-content;
 }
-.offline-badge[hidden] { display: none; }
+.temp-badge[hidden] { display: none; }
 .temp-badge { color: var(--break-color); border-color: var(--break-color); }

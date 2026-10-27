@@ -1,3 +1,5 @@
+import { getNote } from './notes.js';
+import { dateForDay } from './overrides.js';
 import { state } from './state.js';
 import { DAYS_EN, DAYS_RU } from './constants.js';
 import { escapeHtml, hasSubject, schoolNow, $ } from './utils.js';
@@ -15,6 +17,7 @@ function getLessonStatus(day, bell) {
     return 'normal';
 }
 
+/** Подпись состояния списка: меняется, только когда меняется подсветка уроков. */
 export function listSignature(day) {
     const statuses = getBellsForDay(day).map(b => getLessonStatus(day, b));
     return `${state.currentActualDay}|${day}|${statuses.join(',')}`;
@@ -41,15 +44,19 @@ export function renderSchedule(day) {
         const bell = bells[index];
         if (!bell || !hasSubject(subject)) return;
         const status = getLessonStatus(day, bell);
+        const date = dateForDay(day);
+        const note = getNote(date, index);
         const statusClass = status === 'normal' ? '' : ` class="${status}"`;
         listHtml += `
-            <li${statusClass}>
+            <li${statusClass} data-i="${index}" data-date="${date}">
                 <span class="lesson-num">${index + 1}</span>
                 <span class="lesson-time">${escapeHtml(bell.start)} – ${escapeHtml(bell.end)}</span>
                 <span class="lesson-subject">
                     ${getSubjectIcon(subject)}
                     <span>${escapeHtml(subject)}</span>
                 </span>
+                <button class="note-btn" type="button" aria-label="Заметка к уроку">✎</button>
+                ${note ? `<p class="lesson-note">${escapeHtml(note)}</p>` : ''}
             </li>`;
     });
 

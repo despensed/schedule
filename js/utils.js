@@ -55,6 +55,13 @@ export function getSchoolDay(n) {
     return DAYS_RU[n] ? n : 'monday';
 }
 
+/**
+ * Включает анимацию въезда карточек один раз на загрузку страницы.
+ *
+ * Флаг ставится на <html data-animate="1"> и снимается через 1.6 с:
+ * карточки перерисовываются каждые 15 секунд, и без снятия флага
+ * анимация переигрывалась бы постоянно.
+ */
 export function markEntrance() {
     const root = document.documentElement;
     if (root.dataset.animate) return;
@@ -102,8 +109,13 @@ try {
         year: 'numeric', month: 'numeric', day: 'numeric',
         hour: 'numeric', minute: 'numeric', second: 'numeric'
     });
-} catch (e) {  }
+} catch (e) { /* неизвестный пояс — берём время устройства */ }
 
+/**
+ * «Сейчас» в часовом поясе школы. Возвращает Date, у которого локальные
+ * поля (getHours, getDay…) равны настенному времени школы, поэтому весь
+ * остальной код работает с ним как с обычной датой.
+ */
 export function schoolNow() {
     const real = new Date();
     if (!tzFormat) return real;

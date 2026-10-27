@@ -16,6 +16,7 @@ export const DAYS_SHORT = {
     friday: 'Пт'
 };
 
+/** Часовой пояс школы: время считается по нему, а не по часам устройства. */
 export const SCHOOL_TIME_ZONE = 'Asia/Yekaterinburg';
 
 export const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -29,56 +30,29 @@ export const STORAGE_KEYS = {
 export const DEFAULT_SETTINGS = {
     theme: 'light',
     preset: 'blank',
-    customThemeColor: '#1e1b4b',
-    customThemeColorCustom: false,
-    customThemeOpacity: 25,
-    customBaseTheme: 'light',
-    customCss: '',
     timerStyle: 'bar',
     accentColor: '#ff4b1f',
     lessonColor: '#ff4b1f',
     breakColor: '#2347ff',
-    backgroundMode: 'plain',
     designVersion: 2,
-    solidColor: '#6366f1',
-    orbsColors: ['#a5b4fc', '#f0abfc', '#93c5fd'],
-    particlesCount: 5,
-    particlesShape: 'dot',
-    particlesBlur: 0,
-    particlesColors: ['#6366f1'],
-    gradientColor1: '#a5b4fc',
-    gradientColor2: '#f0abfc',
-    gradientAngle: 135,
-    gradientRotate: false,
-    gradientAngleFrom: 30,
-    gradientAngleTo: 210,
-    gradientSpeed: 50,
     glowIntensity: 0,
-    heartOutlineColor: '#ff4b1f',
+    heartOutlineColor: '#16140f',
     heartOutlineCustom: false,
     heartOutlineWidth: 1.5,
     heartAnimation: 'none'
 };
 
 export function createDefaultSettings() {
-    return {
-        ...DEFAULT_SETTINGS,
-        orbsColors: DEFAULT_SETTINGS.orbsColors.slice(),
-        particlesColors: DEFAULT_SETTINGS.particlesColors.slice()
-    };
+    return { ...DEFAULT_SETTINGS };
 }
 
 export const VALID = {
-    preset: ['blank', 'graphite', 'terminal'],
-    theme: ['light', 'dark', 'custom'],
-    timerStyle: ['bar', 'ring', 'clock', 'hearts'],
-    backgroundMode: ['plain', 'orbs', '1color', 'gradient', 'particles'],
-    particlesShape: ['dot', 'heart', 'triangle', 'random'],
-    heartAnimation: ['none', 'bounce'],
-    customBaseTheme: ['light', 'dark']
+    preset: ['blank', 'graphite', 'terminal', 'glass', 'retro'],
+    theme: ['light', 'dark'],
+    timerStyle: ['bar', 'ring', 'clock', 'hearts', 'cells'],
+    heartAnimation: ['none', 'bounce']
 };
 
-export const HEART_PATH = 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z';
 
 export const ICON_PATHS = {
     book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
@@ -124,8 +98,9 @@ export const SUBJECT_ICON_MAP = {
     'государственный (башкирский) язык рб': 'languages'
 };
 
-const paint = c => ({ accentColor: c[0], lessonColor: c[0], breakColor: c[1], heartOutlineColor: c[0] });
+const paint = c => ({ accentColor: c[0], lessonColor: c[0], breakColor: c[1], heartOutlineColor: '#16140f' });
 
+/** Пресет — набор значений, которые копируются в настройки; дальше их можно менять руками. */
 export const PRESETS = {
     blank: { label: 'Бланк', variants: [
         { label: 'Светлая', set: { theme: 'light', ...paint(['#ff4b1f', '#2347ff']) } },
@@ -134,6 +109,14 @@ export const PRESETS = {
     graphite: { label: 'Графит', variants: [
         { label: 'Светлая', set: { theme: 'light', ...paint(['#26262b', '#8b8b94']) } },
         { label: 'Тёмная', set: { theme: 'dark', ...paint(['#e9e9ee', '#85858f']) } }
+    ] },
+    glass: { label: 'Стекло', variants: [
+        { label: 'Светлая', set: { theme: 'light', ...paint(['#2f6bff', '#ff8a3d']) } },
+        { label: 'Тёмная', set: { theme: 'dark', ...paint(['#6ea8ff', '#ffb36b']) } }
+    ] },
+    retro: { label: 'Ретро', variants: [
+        { label: 'Классика', set: { theme: 'light', ...paint(['#000080', '#008080']) } },
+        { label: 'Ночь', set: { theme: 'dark', ...paint(['#4cc9f0', '#f72585']) } }
     ] },
     terminal: { label: 'Терминал', variants: [
         { label: 'Зелёный', set: { theme: 'dark', ...paint(['#39ff88', '#00c8ff']) } },

@@ -3,6 +3,18 @@ import { DAYS_ORDER } from './constants.js';
 import { schoolNow } from './utils.js';
 import { OVERRIDES_CSV_URL, OVERRIDES_TIMEOUT_MS } from './config.js';
 
+/**
+ * Замены расписания из Google Таблицы.
+ *
+ * Строка таблицы: дата | звонки | урок 1 | урок 2 | …
+ *  - дата: 21.10.2026 или 2026-10-21;
+ *  - звонки: пусто (как обычно в этот день), имя расписания звонков
+ *    из schedule.json (short, long) или «выходной» — тогда уроков нет;
+ *  - уроки: по ячейке на слот, пустая ячейка — урока нет.
+ *
+ * state.tempSchedule хранит результат как { 'YYYY-MM-DD': { bellSchedule, lessons } }.
+ */
+
 const DAY_OFF_WORDS = ['выходной', 'нет уроков'];
 
 function pad2(n) {
@@ -13,6 +25,10 @@ export function toIso(date) {
     return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
+/**
+ * Дата ближайшего дня недели, считая от сегодня (сегодня включительно).
+ * Совпадает с логикой таймера: выбранный «понедельник» в среду — это следующий.
+ */
 export function dateForDay(day, now = schoolNow()) {
     const idx = DAYS_ORDER.indexOf(day);
     if (idx < 0) return null;
@@ -28,6 +44,7 @@ export function getOverrideForDay(day) {
     return (date && map[date]) || null;
 }
 
+/** Замены, которые сейчас действуют на карточках дней, по порядку дат. */
 export function listUpcomingOverrides() {
     return DAYS_ORDER
         .map(day => ({ day, date: dateForDay(day) }))
@@ -94,6 +111,11 @@ export async function fetchOverridesCsv() {
     }
 }
 
+/**
+ * Разбирает CSV в замены. Плохие строки пропускаются поодиночке
+ * (с предупреждением в консоли), остальные продолжают работать.
+ * Нужен уже загруженный state.schedule — по нему проверяются звонки.
+ */
 export function parseOverrides(csvText) {
     if (!csvText || !state.schedule) return null;
 

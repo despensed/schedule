@@ -7,11 +7,12 @@ import {
     formatTime,
     formatProgressDetail,
     heartsFillFraction,
-    buildHeartsHtml,
+    buildHeartsHtml, heartState, buildCellsHtml, updateCells,
     buildClockHtml,
     updateClockNumbers
 } from './format.js';
 
+/** Таймер снятия класса .animating — общий, чтобы не наслаивался. */
 let animTimer = 0;
 
 function updateTitle(timeStr) {
@@ -56,14 +57,6 @@ export function renderStatus() {
 
     const todayName = DAYS_EN[now.getDay()];
     const isOtherDay = event && event.day && event.day !== todayName;
-
-    const sameDay = home.dataset.day === state.selectedDay;
-    home.dataset.day = state.selectedDay;
-    if (!sameDay) {
-
-        clearTimeout(animTimer);
-        home.classList.remove('animating');
-    }
 
     if (event && event.mode === 'empty') {
         home.innerHTML = `<h2 class="section-title">${escapeHtml(DAYS_RU[event.day] || '')}</h2><p class="status-text-only">В этот день уроков нет.</p>`;
@@ -128,6 +121,15 @@ export function renderStatus() {
                     <div class="hearts-row">${buildHeartsHtml(filled, bounce)}</div>
                     <div class="status-hearts-label">${safeLabel}${detailSuffixHtml}</div>
                 </div>`;
+        } else if (style === 'cells') {
+            timerHtml = `
+                <div class="status-bar">
+                    <div class="status-bar-top">
+                        <span class="status-bar-time">${timeStr}</span>
+                        <span class="status-bar-label">${safeLabel}</span>
+                    </div>
+                    ${buildCellsHtml(event)}
+                </div>`;
         } else if (style === 'clock') {
             timerHtml = `
                 ${buildClockHtml(event.remaining)}
@@ -140,10 +142,15 @@ export function renderStatus() {
             timerHtml = `
                 <div class="status-ring-container ${ringClass}">
                     <svg class="status-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
-                        <circle class="ring-bg" cx="60" cy="60" r="${radius}" />
+                        <circle class="ring-bg" cx="60" cy="60" r="${radius}"
+                                stroke-dasharray="1.6 ${(circumference / 60 - 1.6).toFixed(2)}" />
                         <circle class="ring-fg" cx="60" cy="60" r="${radius}"
                                 stroke-dasharray="${circumference}"
                                 stroke-dashoffset="${offset}" />
+                        <g class="ring-hand" style="transform: rotate(${(progress * 360).toFixed(1)}deg)">
+                            <line x1="60" y1="60" x2="60" y2="${60 - radius + 7}" />
+                            <circle cx="60" cy="${60 - radius}" r="4.5" />
+                        </g>
                     </svg>
                     <div class="status-ring-content">
                         <div class="status-ring-time">${timeStr}</div>
@@ -162,11 +169,16 @@ export function renderStatus() {
             </div>`;
         home.dataset.key = key;
 
+        // Смену карточки анимируем только внутри одного дня (урок → перемена),
+        // при переключении дня карточка меняется без анимации.
+        const sameDay = home.dataset.day === state.selectedDay;
+        home.dataset.day = state.selectedDay;
         if (sameDay) {
             home.classList.remove('animating');
             void home.offsetWidth;
             home.classList.add('animating');
-
+            // Предыдущий таймер нельзя оставлять: он снял бы класс
+            // посреди новой анимации и карточка «залипла» бы полупрозрачной.
             clearTimeout(animTimer);
             animTimer = setTimeout(() => home.classList.remove('animating'), 300);
         }
@@ -185,6 +197,8 @@ export function renderStatus() {
             if (ring) {
                 const circumference = 2 * Math.PI * 52;
                 ring.setAttribute('stroke-dashoffset', circumference * (1 - progress));
+                const hand = home.querySelector('.ring-hand');
+                if (hand) hand.style.transform = `rotate(${(progress * 360).toFixed(1)}deg)`;
             }
         } else if (style === 'bar') {
             const fill = home.querySelector('.status-bar-fill');
@@ -192,14 +206,11 @@ export function renderStatus() {
         } else if (style === 'hearts') {
             const filled = heartsFillFraction(progress, event.mode);
             home.querySelectorAll('.heart-icon').forEach((svg, i) => {
-                const v = Math.min(1, Math.max(0, filled - i));
-                const fillPath = svg.querySelector('.heart-fill');
-                if (fillPath) {
-                    const clip = `inset(0 ${(1 - v) * 100}% 0 0)`;
-                    fillPath.style.clipPath = clip;
-                    fillPath.style.webkitClipPath = clip;
-                }
+                const st = String(heartState(Math.min(1, Math.max(0, filled - i))));
+                if (svg.dataset.s !== st) svg.dataset.s = st;
             });
+        } else if (style === 'cells') {
+            updateCells(home, event);
         } else if (style === 'clock') {
             updateClockNumbers(event.remaining);
         }

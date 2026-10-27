@@ -1,3 +1,5 @@
+/* Тема «Бланк»: бумага, чернила, один сигнальный цвет.
+   Плоские поверхности, рамка 1.5px и жёсткая тень без размытия. */
 :root {
     --bg: #ece6d8; --surface: #f5f0e4; --surface-strong: #fffcf3; --surface-solid: #fffcf3; --surface-2: transparent;
     --settings-surface-strong: #fffcf3; --settings-surface-solid: #fffcf3; --settings-surface-2: #f5f0e4;
@@ -97,14 +99,15 @@ nav ul .slide { border: 1.5px solid var(--text); box-shadow: 3px 3px 0 var(--tex
 .lesson-subject { justify-content: flex-start; text-align: left; font-size: 1rem; }
 .lesson-subject .subject-icon { display: none; }
 
-.menu-toggle, .settings-close { border: 1.5px solid var(--text); border-radius: 0; background: var(--surface-strong); box-shadow: var(--shadow); }
-.settings-sheet { border-radius: 0; border: 1.5px solid var(--text); background: var(--surface-solid); box-shadow: var(--shadow); }
-.segmented, .seg-btn, .mini-btn, .reset-btn, .settings-close, .confirm-dialog, .code-input { border-radius: 0; }
+.menu-toggle { border: 1.5px solid var(--text); border-radius: 0; background: var(--surface-strong); box-shadow: var(--shadow); }
+.settings-panel { border-radius: 0; border: 0; border-left: 1.5px solid var(--text); background: var(--surface-solid); box-shadow: none; }
+.segmented, .seg-btn, .mini-btn, .reset-btn, .confirm-dialog { border-radius: 0; }
 .temp-badge {
     font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; border-radius: 0;
     border: 1.5px dashed #16140f; background: #ffd84a; color: #16140f; transform: rotate(-1deg);
 }
 
+/* Телефон: крупный номер слева, предмет и время столбиком. */
 @media (max-width: 600px) {
     .schedule-list li { grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 2px 10px; padding: 12px 4px; }
     .schedule-list li.current { padding-inline: 22px; }
@@ -114,6 +117,7 @@ nav ul .slide { border: 1.5px solid var(--text); box-shadow: 3px 3px 0 var(--tex
     #schedule-view h2 { font-size: 1.6rem; }
 }
 
+/* Скользящий маркер выбора (js/slider.js) */
 .segmented { position: relative; --slide-grow: 0px; }
 .slide { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; background: var(--accent); opacity: 0; }
 [data-slide="ready"] > .slide {
@@ -126,6 +130,7 @@ nav ul .slide { border: 1.5px solid var(--text); box-shadow: 3px 3px 0 var(--tex
     [data-slide="ready"] > .slide, nav ul li a { transition: none; }
 }
 
+/* Пресеты поверхностей. Цвета акцента копируются из пресета в настройки (js/constants.js). */
 [data-preset="graphite"] {
     --bg: #e4e4e7; --surface: #eeeef0; --surface-strong: #f7f7f8; --surface-solid: #f7f7f8;
     --settings-surface-strong: #f7f7f8; --settings-surface-solid: #f7f7f8; --settings-surface-2: #eeeef0;
@@ -147,3 +152,181 @@ nav ul .slide { border: 1.5px solid var(--text); box-shadow: 3px 3px 0 var(--tex
     background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
 }
 #variant-settings, #variant-settings .setting-group { border: 0; padding: 0; margin: 0; background: none; border-radius: 0; }
+
+/* «Своя тема» показывается только когда выбран этот пресет */
+.settings-section:has(#custom-theme-settings:not(.visible)) { display: none; }
+#custom-theme-settings { flex-direction: column; gap: 14px; }
+.setting-block-title {
+    margin: 8px 0 0; padding-bottom: 6px; border-bottom: 1.5px solid var(--text);
+    font: 700 .72rem var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+}
+.setting-hint { margin: 0; font-size: .8rem; line-height: 1.4; color: var(--text-muted); }
+
+/* Тач: :hover «залипает» после нажатия, поэтому подсветка только для мыши */
+#header-title, .menu-toggle, nav ul li a { -webkit-tap-highlight-color: transparent; }
+#header-title:hover { color: var(--text); }
+.menu-toggle:hover { transform: none; }
+nav ul li a:hover { background: transparent; }
+@media (hover: hover) and (pointer: fine) {
+    #header-title:hover { color: var(--accent); }
+    .menu-toggle:hover { transform: scale(1.08); }
+    nav ul li a:not(.active):hover { background: var(--surface); }
+}
+
+/* Кнопка меню лежит над страницей настроек и плавно растворяется вместе с тенью,
+   а возвращается, когда страница уже свернулась в неё. */
+.menu-toggle {
+    z-index: 300;
+    transition: opacity .2s ease .35s, transform .3s cubic-bezier(.34, 1.4, .5, 1) .3s;
+}
+[data-settings="open"] .menu-toggle {
+    opacity: 0; transform: scale(.8); pointer-events: none;
+    transition: opacity .22s ease, transform .25s ease;
+}
+@media (prefers-reduced-motion: reduce) { .menu-toggle, [data-settings="open"] .menu-toggle { transition: none; } }
+
+/* ===== Стекло: матовые панели с бликом по краю на статичном цветном фоне ===== */
+[data-preset="glass"] {
+    --font-ui: 'Onest', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --glass: rgba(255, 255, 255, .5); --glass-line: rgba(255, 255, 255, .75); --glass-edge: rgba(255, 255, 255, .9);
+    --bg: #e6eaf7; --surface: var(--glass); --surface-strong: rgba(255, 255, 255, .62); --surface-solid: #f3f5fc;
+    --settings-surface-strong: #f3f5fc; --settings-surface-solid: #f3f5fc; --settings-surface-2: rgba(255, 255, 255, .6);
+    --text: #17203a; --text-muted: #5b6684; --border: rgba(23, 32, 58, .14); --ring-bg: rgba(23, 32, 58, .1);
+    --shadow: 0 14px 34px rgba(60, 80, 140, .22);
+}
+[data-preset="glass"][data-theme="dark"] {
+    --glass: rgba(255, 255, 255, .08); --glass-line: rgba(255, 255, 255, .2); --glass-edge: rgba(255, 255, 255, .38);
+    --bg: #0b1020; --surface: var(--glass); --surface-strong: rgba(255, 255, 255, .12); --surface-solid: #151b30;
+    --settings-surface-strong: #151b30; --settings-surface-solid: #151b30; --settings-surface-2: rgba(255, 255, 255, .07);
+    --text: #eef2ff; --text-muted: #98a3c7; --border: rgba(255, 255, 255, .16); --ring-bg: rgba(255, 255, 255, .12);
+    --shadow: 0 16px 40px rgba(0, 0, 0, .5);
+}
+[data-preset="glass"] body {
+    background-image:
+        radial-gradient(60vmax 60vmax at 8% 4%, rgba(120, 150, 255, .55), transparent 60%),
+        radial-gradient(55vmax 55vmax at 98% 30%, rgba(255, 150, 200, .45), transparent 60%),
+        radial-gradient(60vmax 60vmax at 30% 100%, rgba(120, 230, 210, .45), transparent 60%);
+    background-attachment: fixed;
+}
+[data-preset="glass"][data-theme="dark"] body {
+    background-image:
+        radial-gradient(60vmax 60vmax at 8% 4%, rgba(70, 90, 220, .5), transparent 60%),
+        radial-gradient(55vmax 55vmax at 98% 30%, rgba(190, 60, 140, .38), transparent 60%),
+        radial-gradient(60vmax 60vmax at 30% 100%, rgba(30, 150, 150, .4), transparent 60%);
+}
+[data-preset="glass"] #home, [data-preset="glass"] nav ul {
+    -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+}
+[data-preset="glass"] #home, [data-preset="glass"] #schedule-view, [data-preset="glass"] nav ul,
+[data-preset="glass"] .settings-section, [data-preset="glass"] .menu-toggle, [data-preset="glass"] .settings-close {
+    background: var(--glass); border: 1px solid var(--glass-line); border-radius: 22px;
+    box-shadow: var(--shadow), inset 0 1.5px 0 var(--glass-edge), inset 0 -1px 0 rgba(255, 255, 255, .12);
+}
+[data-preset="glass"] #schedule-view { background: var(--surface-strong); }
+[data-preset="glass"] .menu-toggle, [data-preset="glass"] .settings-close { border-radius: 16px; }
+[data-preset="glass"] nav ul { background-image: none; overflow: visible; }
+[data-preset="glass"] nav ul li + a, [data-preset="glass"] nav ul li + li a { border-left: 0; }
+[data-preset="glass"] nav ul .slide { border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: 0 8px 18px rgba(0, 0, 0, .22), inset 0 1.5px 0 rgba(255, 255, 255, .55); }
+[data-preset="glass"] #header-title, [data-preset="glass"] #schedule-view h2, [data-preset="glass"] .settings-header h3 { text-transform: none; letter-spacing: -.035em; }
+[data-preset="glass"] #home .section-title { border-radius: 99px; transform: none; border-color: var(--glass-line); background: var(--glass); color: var(--text); }
+[data-preset="glass"] .schedule-list li, [data-preset="glass"] .schedule-list li:first-child { border-top: 1px solid var(--border); }
+[data-preset="glass"] .schedule-list li.current { border-radius: 14px; margin-inline: -10px; padding-inline: 14px; border-color: transparent; }
+[data-preset="glass"] .status-bar-track { border: 0; border-radius: 99px; background: var(--ring-bg); overflow: hidden; }
+[data-preset="glass"] .status-bar-fill { border-radius: 99px; background-image: none !important; }
+[data-preset="glass"] .cell { border: 0; border-radius: 6px; background: var(--ring-bg); }
+[data-preset="glass"] .cell.on { background: var(--event-color, var(--lesson-color)); }
+[data-preset="glass"] .settings-panel { background-color: var(--bg); background-image: inherit; }
+[data-preset="glass"] .segmented, [data-preset="glass"] .seg-btn, [data-preset="glass"] .slide, [data-preset="glass"] .mini-btn { border-radius: 12px; }
+[data-preset="glass"] .temp-badge { border-radius: 99px; transform: none; border: 1px solid var(--glass-line); }
+
+/* ===== Заметки к урокам ===== */
+.schedule-list li { position: relative; }
+.note-btn {
+    position: absolute; right: 0; top: 8px; width: 34px; height: 34px; padding: 0; border: 0; background: none;
+    color: var(--text-muted); font-size: 1.1rem; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.schedule-list li.current .note-btn { color: var(--accent-text); }
+.lesson-note, .note-input { grid-column: 2 / -1; box-sizing: border-box; max-width: calc(100% - 30px); margin: 6px 0 0; font: .82rem var(--font-mono); }
+.lesson-note {
+    width: fit-content; padding: 5px 9px; background: #ffd84a; color: #16140f; border: 1.5px dashed #16140f;
+    transform: rotate(-.6deg); overflow-wrap: anywhere;
+}
+.note-input { width: 100%; padding: 7px 9px; color: var(--text); background: var(--surface-strong); border: 1.5px solid var(--text); border-radius: 0; outline: none; }
+
+/* ===== Терминал: выглядит как терминал ===== */
+@keyframes term-blink { 50% { opacity: 0; } }
+[data-preset="terminal"] #header-title { text-transform: lowercase; font-size: clamp(1.7rem, 8.5vw, 2.4rem); letter-spacing: -.04em; }
+[data-preset="terminal"] #header-title::before { content: '> '; color: var(--accent); }
+[data-preset="terminal"] #header-title::after { content: '█'; margin-left: .08em; color: var(--accent); animation: term-blink 1s steps(1) infinite; }
+[data-preset="terminal"] .today-date::before { content: '$ date'; width: auto; height: auto; background: none; margin-right: .9em; color: var(--accent); }
+[data-preset="terminal"] :is(#home, #schedule-view, nav ul, .settings-section, .menu-toggle, .settings-close) { border: 1px solid var(--accent); border-radius: 0; box-shadow: none; }
+[data-preset="terminal"] nav ul li a::before, [data-preset="terminal"] .lesson-num::before { content: '['; }
+[data-preset="terminal"] nav ul li a::after, [data-preset="terminal"] .lesson-num::after { content: ']'; }
+[data-preset="terminal"] #home .section-title { transform: none; border: 0; padding: 0; letter-spacing: 0; text-transform: lowercase; }
+[data-preset="terminal"] #home .section-title::before { content: '# '; }
+[data-preset="terminal"] .status-bar-track { height: 18px; border: 0; background: repeating-linear-gradient(90deg, var(--ring-bg) 0 8px, transparent 8px 11px); }
+[data-preset="terminal"] .status-bar-fill { background-color: transparent !important; background-image: repeating-linear-gradient(90deg, var(--event-color, var(--lesson-color)) 0 8px, transparent 8px 11px) !important; }
+[data-preset="terminal"] .lesson-note { background: none; color: var(--accent); border: 0; padding: 0; transform: none; }
+[data-preset="terminal"] .lesson-note::before { content: '// '; }
+
+/* ===== Графит: тетрадь в клетку и маркер ===== */
+[data-preset="graphite"] { --shadow: 2px 3px 0 rgba(24, 24, 27, .22); }
+[data-preset="graphite"][data-theme="dark"] { --shadow: 2px 3px 0 rgba(0, 0, 0, .5); }
+[data-preset="graphite"] body {
+    background-image: linear-gradient(rgba(24, 24, 27, .08) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 24, 27, .08) 1px, transparent 1px);
+    background-size: 22px 22px;
+}
+[data-preset="graphite"][data-theme="dark"] body {
+    background-image: linear-gradient(rgba(236, 236, 240, .07) 1px, transparent 1px), linear-gradient(90deg, rgba(236, 236, 240, .07) 1px, transparent 1px);
+}
+[data-preset="graphite"] :is(#home, #schedule-view, nav ul, .settings-section) { border-radius: 7px 15px 9px 13px / 13px 7px 15px 9px; }
+[data-preset="graphite"] #header-title { text-transform: none; text-decoration: underline wavy var(--accent); text-decoration-thickness: 2px; text-underline-offset: .14em; }
+[data-preset="graphite"] .schedule-list li.current { background: #ffe45e; transform: rotate(-.5deg); }
+[data-preset="graphite"] .schedule-list li.current :is(.lesson-num, .lesson-time, .lesson-subject, .note-btn) { color: #18181b; }
+[data-preset="graphite"] #home .section-title { transform: none; border: 0; background: #ffe45e; color: #18181b; padding: 2px 8px; }
+
+/* ===== Ретро: окна с заголовками и объёмными кнопками ===== */
+[data-preset="retro"] {
+    --font-ui: Tahoma, 'Segoe UI', Arial, sans-serif; --font-mono: 'Courier New', monospace;
+    --bg: #008080; --rt-face: #c0c0c0; --rt-hi: #fff; --rt-lo: #808080; --rt-t1: #000080; --rt-t2: #1084d0;
+    --surface: var(--rt-face); --surface-strong: var(--rt-face); --surface-solid: var(--rt-face);
+    --settings-surface-strong: var(--rt-face); --settings-surface-solid: var(--rt-face); --settings-surface-2: var(--rt-face);
+    --text: #000; --text-muted: #404040; --border: #808080; --ring-bg: rgba(0, 0, 0, .18); --shadow: none;
+}
+[data-preset="retro"][data-theme="dark"] {
+    --bg: #0a0a14; --rt-face: #2b2b33; --rt-hi: #62626e; --rt-lo: #0b0b0e; --rt-t1: #3a0ca3; --rt-t2: #4cc9f0;
+    --text: #ececf2; --text-muted: #a8a8b6;
+}
+[data-preset="retro"] body { background-image: none; }
+[data-preset="retro"] :is(#home, #schedule-view, nav ul, .settings-section, .menu-toggle, .settings-close) {
+    background: var(--rt-face); border: 2px solid; border-color: var(--rt-hi) var(--rt-lo) var(--rt-lo) var(--rt-hi);
+    border-radius: 0; box-shadow: 1px 1px 0 #000;
+}
+[data-preset="retro"] :is(#home, #schedule-view) { position: relative; padding-top: 44px; }
+[data-preset="retro"] :is(#home, #schedule-view)::before {
+    position: absolute; top: 2px; left: 2px; right: 2px; height: 20px; padding-left: 8px; line-height: 20px;
+    background: linear-gradient(90deg, var(--rt-t1), var(--rt-t2)); color: #fff; font: 700 .78rem/20px var(--font-ui);
+}
+[data-preset="retro"] #home::before { content: 'Статус.exe'; }
+[data-preset="retro"] #schedule-view::before { content: 'Расписание.exe'; }
+[data-preset="retro"] :is(#home, #schedule-view)::after {
+    content: '_ □ ×'; position: absolute; top: 4px; right: 5px; height: 16px; padding: 0 5px; white-space: pre;
+    font: 700 .7rem/14px var(--font-ui); color: var(--text); background: var(--rt-face); letter-spacing: .15em;
+    border: 1px solid; border-color: var(--rt-hi) var(--rt-lo) var(--rt-lo) var(--rt-hi);
+}
+[data-preset="retro"] nav ul .slide, [data-preset="retro"] .slide {
+    background: var(--rt-face); border: 2px solid; border-color: var(--rt-lo) var(--rt-hi) var(--rt-hi) var(--rt-lo);
+    border-radius: 0; box-shadow: none;
+}
+[data-preset="retro"] nav ul li a.active, [data-preset="retro"] nav ul li a.active:hover, [data-preset="retro"] .seg-btn.active { color: var(--text); }
+[data-preset="retro"] .status-bar-track { height: 20px; background: var(--rt-face); border: 2px solid; border-color: var(--rt-lo) var(--rt-hi) var(--rt-hi) var(--rt-lo); }
+[data-preset="retro"] .status-bar-fill { background-color: transparent !important; background-image: repeating-linear-gradient(90deg, var(--rt-t1) 0 10px, transparent 10px 12px) !important; }
+[data-preset="retro"] #home .section-title { transform: none; border: 0; padding: 0; color: var(--text); text-transform: none; letter-spacing: 0; }
+[data-preset="retro"] #header-title { text-transform: none; color: #fff; text-shadow: 2px 2px 0 #000; }
+[data-preset="retro"] .today-date { color: #fff; text-shadow: 1px 1px 0 #000; }
+[data-preset="retro"] .lesson-note { background: #ffffe1; color: #000; border: 1px solid #000; transform: none; box-shadow: 2px 2px 0 rgba(0, 0, 0, .4); }
+
+/* Правки: скобки у «сегодня» в Терминале, заголовки окон в Ретро */
+[data-preset="terminal"] nav ul li a::after { position: static; display: inline; width: auto; height: auto; background: none; transform: none; border-radius: 0; }
+[data-preset="terminal"] nav ul li a.today::before { content: '[•'; }
+[data-preset="retro"] :is(#home, #schedule-view)::before { text-align: left; }
